@@ -40,7 +40,7 @@ In another terminal (same directory), run:
 python -m unittest discover -s tests -v
 ```
 
-Test results are **not claimed** until the tests have actually been run in a configured Python environment.
+Verification completed on November 19, 2026: **19 of 19 tests passed** in an isolated Vercel QA sandbox. All three application modules were also exercised against the protected online deployment. See `VERCEL_PREVIEW.md` for live test results, durable private Blob audit storage, saved WSDL catalog, and known limitations.
 
 ## Work remaining
 
@@ -49,3 +49,7 @@ Test results are **not claimed** until the tests have actually been run in a con
 - Improve WSDL/XSD complex-type compatibility logic and verify SOAP 1.2 integration.
 - Add persistent dashboard aggregate metrics and filters if lifetime data is required.
 - Review authorization and additional network hardening before any production exposure.
+
+## Protected online deployment
+
+The complete Flask app is live at https://capstone-contract-studio-preview.vercel.app (Vercel sign-in required). Runtime audit history and saved WSDL configurations use private Vercel Blob, and PDF exports are generated from durable records in memory. The earlier sidebar overlap was fixed by subtracting the fixed rail width from Bootstrap's full-width layout. Automated/browser screenshot comparison has not yet been completed on all viewport sizes.
