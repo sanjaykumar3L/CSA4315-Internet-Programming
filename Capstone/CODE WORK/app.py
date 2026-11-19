@@ -19,8 +19,13 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 CORS(app, resources={r"/api/*": {"origins": os.environ.get("CAPSTONE_ALLOWED_ORIGIN", "http://127.0.0.1:5000")}})
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB max payload
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_history.db")
-PDF_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "generated_reports")
+# Vercel Functions have a read-only deployment bundle. /tmp is scratch space only:
+# the SQLite database is intentionally EPHEMERAL in online preview.
+IS_VERCEL = bool(os.environ.get("VERCEL"))
+RUNTIME_DIR = "/tmp/capstone-contract-studio" if IS_VERCEL else os.path.dirname(os.path.abspath(__file__))
+os.makedirs(RUNTIME_DIR, exist_ok=True)
+DB_PATH = os.path.join(RUNTIME_DIR, "test_history.db")
+PDF_DIR = os.path.join(RUNTIME_DIR, "generated_reports")
 os.makedirs(PDF_DIR, exist_ok=True)
 
 # XML & WSDL Standard Namespaces
@@ -472,7 +477,7 @@ def check_soap_endpoint(endpoint_url):
         return f"Invalid or unresolved SOAP endpoint: {exc}"
     return None
 
-def dispatch_real_soap_request(endpoint_url, request_xml, soap_action="", soap_version="1.1", timeout=12, service_name="SOAPService", operation_name="Operation"):
+def dispatch_real_soap_request(endpoint_url, request_xml, soap_action="", soap_version="1.1", timeout=12, service_name="SOAPService", operation_name="Operation", internal_demo=False):
     headers = {
         "User-Agent": "Integrated-Contract-Validator/1.0",
     }
@@ -487,16 +492,24 @@ def dispatch_real_soap_request(endpoint_url, request_xml, soap_action="", soap_v
 
     start_timer = time.perf_counter()
     try:
-        resp = requests.post(
-            endpoint_url,
-            data=request_xml.encode('utf-8'),
-            headers=headers,
-            timeout=timeout,
-            allow_redirects=False
-        )
+        if internal_demo:
+            # The Vercel preview demo uses the real Calculator SOAP Flask handler,
+            # without making an HTTP request back through deployment protection.
+            with app.test_client() as demo_client:
+                resp = demo_client.post("/soap/calculator", data=request_xml.encode("utf-8"), headers=headers)
+                status_code = resp.status_code
+                response_text = resp.get_data(as_text=True)
+        else:
+            resp = requests.post(
+                endpoint_url,
+                data=request_xml.encode('utf-8'),
+                headers=headers,
+                timeout=timeout,
+                allow_redirects=False
+            )
+            status_code = resp.status_code
+            response_text = resp.text
         latency_ms = round((time.perf_counter() - start_timer) * 1000, 2)
-        status_code = resp.status_code
-        response_text = resp.text
     except requests.exceptions.Timeout:
         latency_ms = round((time.perf_counter() - start_timer) * 1000, 2)
         err_msg = f"Network Timeout: Service failed to respond within {timeout} seconds."
@@ -754,12 +767,15 @@ CALCULATOR_WSDL = """<?xml version="1.0" encoding="UTF-8"?>
 def live_mock_calculator():
     if request.method == "GET":
         if "wsdl" in request.args or request.path.endswith("?wsdl"):
-            return Response(CALCULATOR_WSDL, mimetype="text/xml")
+            # Use the actual host on Vercel instead of publishing a 127.0.0.1 WSDL endpoint.
+            service_url = request.host_url.rstrip("/") + "/soap/calculator"
+            wsdl = CALCULATOR_WSDL.replace("http://127.0.0.1:5000/soap/calculator", service_url)
+            return Response(wsdl, mimetype="text/xml")
         return Response("Calculator SOAP Service Active. Append ?wsdl for contract.", mimetype="text/plain")
 
     raw_body = request.get_data(as_text=True)
     try:
-        root = etree.fromstring(raw_body.encode('utf-8'))
+        root = etree.fromstring(raw_body.encode('utf-8'), etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False, huge_tree=False))
         add_elem = root.find(".//{http://example.com/calculator}Add")
         if add_elem is not None:
             a = add_elem.find("{http://example.com/calculator}intA")
@@ -834,7 +850,7 @@ def generate_soap_fault(fault_code, fault_string):
 # ---------------------------------------------------------
 @app.route("/")
 def index_page():
-    return render_template("index.html")
+    return render_template("index.html", is_serverless_preview=IS_VERCEL)
 
 # API 1: Parse WSDL
 @app.route("/api/v1/wsdl/parse", methods=["POST"])
@@ -1012,7 +1028,14 @@ def api_execute_soap():
                 "message": "Endpoint URL and SOAP Request XML are required."
             }), 400
 
-        endpoint_error = check_soap_endpoint(endpoint_url)
+        parsed_endpoint = urlsplit(endpoint_url)
+        same_origin_demo = (
+            parsed_endpoint.netloc.lower() == request.host.lower()
+            and parsed_endpoint.scheme in ("https", "http")
+            and parsed_endpoint.path == "/soap/calculator"
+            and not parsed_endpoint.query
+        )
+        endpoint_error = None if same_origin_demo else check_soap_endpoint(endpoint_url)
         if endpoint_error:
             return jsonify({"status": "error", "message": endpoint_error}), 400
         res = dispatch_real_soap_request(
@@ -1022,7 +1045,8 @@ def api_execute_soap():
             soap_version=soap_ver,
             timeout=timeout,
             service_name=service_name,
-            operation_name=operation_name
+            operation_name=operation_name,
+            internal_demo=same_origin_demo
         )
         return jsonify(res), 200
     except Exception as e:
@@ -1032,6 +1056,15 @@ def api_execute_soap():
         }), 500
 
 # API 6: Fetch Audit Logs
+@app.route("/api/v1/runtime", methods=["GET"])
+def api_get_runtime():
+    return jsonify({
+        "status": "success",
+        "mode": "vercel-preview" if IS_VERCEL else "local",
+        "history_persistence": "ephemeral" if IS_VERCEL else "local-sqlite",
+    }), 200
+
+
 @app.route("/api/v1/reports", methods=["GET"])
 def api_get_reports():
     records = db_get_test_records(limit=100)
