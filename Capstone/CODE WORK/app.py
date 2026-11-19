@@ -85,9 +85,8 @@ init_db()
 
 def db_save_service(service_name, target_namespace, endpoint_url, wsdl_content):
     if HAS_PERSISTENT_STORAGE:
-        # WSDL parsing must not save arbitrary uploaded documents publicly.
-        # Service definitions are transient; test audit records are durable.
-        return None
+        from persistent_history import create_service
+        return create_service(service_name, target_namespace, endpoint_url, wsdl_content)
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -102,6 +101,22 @@ def db_save_service(service_name, target_namespace, endpoint_url, wsdl_content):
     except Exception as e:
         print(f"[DB ERROR] save_service: {e}")
         return None
+
+def db_get_services(limit=100):
+    if HAS_PERSISTENT_STORAGE:
+        from persistent_history import list_services
+        return list_services(limit)
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT id, service_name, target_namespace, endpoint_url, created_at "
+            "FROM configured_services ORDER BY id DESC LIMIT ?",
+            (limit,)
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
 
 def db_save_test_record(service_name, operation_name, endpoint_url, test_type, status,
                         response_time_ms, http_status_code, request_xml, response_xml,
@@ -1096,6 +1111,15 @@ def api_get_runtime():
         "mode": "vercel-preview" if IS_VERCEL else "local",
         "history_persistence": ("vercel-blob" if HAS_PERSISTENT_STORAGE else ("ephemeral" if IS_VERCEL else "local-sqlite")),
     }), 200
+
+
+@app.route("/api/v1/services", methods=["GET"])
+def api_get_services():
+    try:
+        return jsonify({"status": "success", "services": db_get_services(100)}), 200
+    except Exception:
+        app.logger.exception("Service catalog storage unavailable")
+        return jsonify({"status": "error", "message": "The service catalog is temporarily unavailable."}), 503
 
 
 @app.route("/api/v1/reports", methods=["GET"])
