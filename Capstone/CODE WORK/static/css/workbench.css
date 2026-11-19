@@ -94,7 +94,21 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   color: var(--wb-text);
 }
 .workbench-mobile-shade { display: none; }
-body > .header-bar, body > main { margin-left: var(--wb-nav-width); }
+/* Bootstrap .container-fluid is width:100%; after a left margin it overflows the
+   viewport and slides content underneath the fixed navigation. Subtract the rail. */
+body > .header-bar, body > main {
+  margin-left: var(--wb-nav-width);
+  width: calc(100% - var(--wb-nav-width)) !important;
+  min-width: 0;
+}
+body { overflow-x: clip; }
+.header-bar .d-flex.flex-wrap > div { min-width: 0; }
+.header-bar h1, .header-bar code { overflow-wrap: anywhere; }
+main.container-fluid { box-sizing: border-box; min-width: 0; }
+#moduleTabsContent, .tab-pane, .card { min-width: 0; }
+.table-responsive { max-width: 100%; overflow-x: auto; }
+.workbench-overview > * { min-width: 0; }
+
 .header-bar {
   background: var(--wb-bg) !important;
   color: var(--wb-text) !important;
