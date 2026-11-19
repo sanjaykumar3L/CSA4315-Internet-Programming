@@ -6,6 +6,7 @@ import sqlite3
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, send_file, Response, render_template_string
 from flask_cors import CORS
+from xml.sax.saxutils import escape as xml_escape
 import ipaddress
 import socket
 import uuid
@@ -658,6 +659,8 @@ def build_pdf_document(record, destination_path):
     from reportlab.lib import colors
 
     doc = SimpleDocTemplate(destination_path, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    def safe(value):
+        return xml_escape(str(value if value is not None else "N/A"))
     styles = getSampleStyleSheet()
 
     title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor('#1E3A8A'), spaceAfter=8)
@@ -673,14 +676,14 @@ def build_pdf_document(record, destination_path):
     status_color = colors.green if status == 'PASSED' else colors.red
 
     table_data = [
-        [Paragraph("<b>Service Name:</b>", body_style), Paragraph(str(record.get('service_name', 'N/A')), body_style)],
-        [Paragraph("<b>Operation:</b>", body_style), Paragraph(str(record.get('operation_name', 'N/A')), body_style)],
-        [Paragraph("<b>Endpoint URL:</b>", body_style), Paragraph(str(record.get('endpoint_url', 'N/A')), body_style)],
-        [Paragraph("<b>Test Execution Type:</b>", body_style), Paragraph(str(record.get('test_type', 'N/A')), body_style)],
-        [Paragraph("<b>Execution Status:</b>", body_style), Paragraph(f"<b><font color='{status_color}'>{status}</font></b>", body_style)],
-        [Paragraph("<b>Response Latency:</b>", body_style), Paragraph(f"{record.get('response_time_ms', 0)} ms", body_style)],
-        [Paragraph("<b>HTTP Status Code:</b>", body_style), Paragraph(str(record.get('http_status_code', 'N/A')), body_style)],
-        [Paragraph("<b>Summary:</b>", body_style), Paragraph(str(record.get('summary', 'N/A')), body_style)]
+        [Paragraph("<b>Service Name:</b>", body_style), Paragraph(safe(record.get('service_name')), body_style)],
+        [Paragraph("<b>Operation:</b>", body_style), Paragraph(safe(record.get('operation_name')), body_style)],
+        [Paragraph("<b>Endpoint URL:</b>", body_style), Paragraph(safe(record.get('endpoint_url')), body_style)],
+        [Paragraph("<b>Test Execution Type:</b>", body_style), Paragraph(safe(record.get('test_type')), body_style)],
+        [Paragraph("<b>Execution Status:</b>", body_style), Paragraph(f"<b><font color='{'#008047' if status == 'PASSED' else '#bf3030'}'>{safe(status)}</font></b>", body_style)],
+        [Paragraph("<b>Response Latency:</b>", body_style), Paragraph(safe(f"{record.get('response_time_ms', 0)} ms"), body_style)],
+        [Paragraph("<b>HTTP Status Code:</b>", body_style), Paragraph(safe(record.get('http_status_code')), body_style)],
+        [Paragraph("<b>Summary:</b>", body_style), Paragraph(safe(record.get('summary')), body_style)]
     ]
 
     t = Table(table_data, colWidths=[130, 400])
@@ -703,9 +706,9 @@ def build_pdf_document(record, destination_path):
                 cat = e.get("category", "Error")
                 msg = e.get("message", json.dumps(e))
                 line_info = f" (Line {e.get('line')})" if e.get('line') else ""
-                err_rows.append([Paragraph(f"{cat}{line_info}", body_style), Paragraph(msg, body_style)])
+                err_rows.append([Paragraph(safe(f"{cat}{line_info}"), body_style), Paragraph(safe(msg), body_style)])
             else:
-                err_rows.append([Paragraph("Error", body_style), Paragraph(str(e), body_style)])
+                err_rows.append([Paragraph("Error", body_style), Paragraph(safe(e), body_style)])
 
         err_table = Table(err_rows, colWidths=[150, 380])
         err_table.setStyle(TableStyle([
