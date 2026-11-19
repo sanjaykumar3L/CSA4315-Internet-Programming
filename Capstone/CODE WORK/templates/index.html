@@ -91,9 +91,13 @@
 
   <!-- Top Header -->
   {% if is_serverless_preview %}
-  <div role="status" class="alert alert-warning rounded-0 mb-0 py-2 px-4 text-center small">
-    <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
-    Online preview: test history uses temporary storage and may reset between requests or deployments. Persistent storage is not configured.
+  <div role="status" class="workbench-storage-notice {{ 'is-durable' if is_persistent_history else 'is-temporary' }}">
+    <i class="bi {{ 'bi-database-check' if is_persistent_history else 'bi-exclamation-triangle' }} me-2" aria-hidden="true"></i>
+    {% if is_persistent_history %}
+      Online workspace: audit records are saved in private persistent storage. You can export a PDF from any saved record.
+    {% else %}
+      Online preview: audit history is temporary and can reset between requests. Persistent storage is not configured.
+    {% endif %}
   </div>
   {% endif %}
   <header class="header-bar shadow-sm">
@@ -543,9 +547,10 @@
     let currentParsedData = null;
 
     // Helper: Escape HTML strings for code preview
-    function escapeHtml(str) {
-      if (!str) return "";
-      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     }
 
     // -------------------------------------------------------------
@@ -637,8 +642,8 @@
         opObj.parameters.forEach(p => {
           html += `
             <div class="mb-2">
-              <label class="form-label small mb-0">${p.name} <span class="text-muted">(${p.type})</span> ${p.required ? '<span class="text-danger">*</span>' : ''}</label>
-              <input type="text" class="form-control form-control-sm param-input" data-param-name="${p.name}" value="50">
+              <label class="form-label small mb-0">${escapeHtml(p.name)} <span class="text-muted">(${escapeHtml(p.type)})</span> ${p.required ? '<span class="text-danger">*</span>' : ''}</label>
+              <input type="text" class="form-control form-control-sm param-input" data-param-name="${escapeHtml(p.name)}" value="50">
             </div>
           `;
         });
@@ -939,6 +944,7 @@
       try {
         const resp = await fetch("/api/v1/reports");
         const data = await resp.json();
+        if (!resp.ok || !Array.isArray(data.records)) throw new Error(data.message || "Audit history unavailable");
         const tbody = document.getElementById("auditTableBody");
         tbody.innerHTML = "";
 
@@ -955,12 +961,12 @@
               <td class="fw-semibold">${escapeHtml(r.service_name)}</td>
               <td><code>${escapeHtml(r.operation_name)}</code></td>
               <td><span class="badge bg-light text-dark border">${escapeHtml(r.test_type)}</span></td>
-              <td>${r.response_time_ms} ms</td>
-              <td><code>${r.http_status_code}</code></td>
+              <td>${escapeHtml(r.response_time_ms)} ms</td>
+              <td><code>${escapeHtml(r.http_status_code)}</code></td>
               <td>${statusBadge}</td>
-              <td class="small text-muted">${r.created_at}</td>
+              <td class="small text-muted">${escapeHtml(r.created_at)}</td>
               <td>
-                <a href="/reports/${r.id}/pdf" class="btn btn-xs btn-outline-danger py-1 px-2 small">
+                <a href="/reports/${encodeURIComponent(r.id)}/pdf" class="btn btn-xs btn-outline-danger py-1 px-2 small">
                   <i class="bi bi-file-earmark-pdf"></i> PDF
                 </a>
               </td>
@@ -970,6 +976,8 @@
         });
       } catch (err) {
         console.error("Error fetching reports:", err);
+        document.getElementById("auditTableBody").innerHTML =
+          '<tr><td colspan="9" class="text-center text-danger py-4">Unable to load audit history. Check API connectivity and storage configuration.</td></tr>';
       }
     }
 
