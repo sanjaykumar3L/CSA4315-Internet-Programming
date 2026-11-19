@@ -6,6 +6,9 @@ import sqlite3
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, send_file, Response, render_template_string
 from flask_cors import CORS
+import ipaddress
+import socket
+from urllib.parse import urlsplit
 from lxml import etree
 import requests
 
@@ -13,7 +16,7 @@ import requests
 # Flask App Setup & CORS
 # ---------------------------------------------------------
 app = Flask(__name__, template_folder="templates", static_folder="static")
-CORS(app)  # Enable Cross-Origin Resource Sharing for decoupled frontends
+CORS(app, resources={r"/api/*": {"origins": os.environ.get("CAPSTONE_ALLOWED_ORIGIN", "http://127.0.0.1:5000")}})
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB max payload
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_history.db")
@@ -158,7 +161,7 @@ def db_get_record_by_id(record_id):
 # ---------------------------------------------------------
 def parse_wsdl_stream(wsdl_content_bytes):
     try:
-        parser = etree.XMLParser(remove_blank_text=True, recover=False)
+        parser = etree.XMLParser(remove_blank_text=True, recover=False, resolve_entities=False, no_network=True, load_dtd=False, huge_tree=False)
         root = etree.fromstring(wsdl_content_bytes, parser)
     except etree.XMLSyntaxError as err:
         return {
@@ -277,7 +280,7 @@ def parse_wsdl_stream(wsdl_content_bytes):
 def validate_xml_with_xsd(xml_string, xsd_string):
     # Step 1: Syntactic parsing of XML
     try:
-        xml_parser = etree.XMLParser(remove_blank_text=False)
+        xml_parser = etree.XMLParser(remove_blank_text=False, resolve_entities=False, no_network=True, load_dtd=False, huge_tree=False)
         xml_root = etree.fromstring(xml_string.encode('utf-8'), xml_parser)
     except etree.XMLSyntaxError as se:
         return {
@@ -306,7 +309,7 @@ def validate_xml_with_xsd(xml_string, xsd_string):
 
     # Step 2: Compile XSD Schema
     try:
-        xsd_root = etree.fromstring(xsd_string.encode('utf-8'))
+        xsd_root = etree.fromstring(xsd_string.encode('utf-8'), etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False, huge_tree=False))
         xml_schema = etree.XMLSchema(xsd_root)
     except etree.XMLSchemaParseError as xse:
         return {
@@ -380,8 +383,8 @@ def validate_xml_with_xsd(xml_string, xsd_string):
 
 def diff_schema_compatibility(v1_xsd, v2_xsd):
     try:
-        root_v1 = etree.fromstring(v1_xsd.encode('utf-8'))
-        root_v2 = etree.fromstring(v2_xsd.encode('utf-8'))
+        root_v1 = etree.fromstring(v1_xsd.encode('utf-8'), etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False, huge_tree=False))
+        root_v2 = etree.fromstring(v2_xsd.encode('utf-8'), etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False, huge_tree=False))
     except Exception as e:
         return {
             "success": False,
@@ -446,6 +449,29 @@ def diff_schema_compatibility(v1_xsd, v2_xsd):
 # ---------------------------------------------------------
 # Core Logic: Module 3 - Real SOAP Client & PDF Generator
 # ---------------------------------------------------------
+def check_soap_endpoint(endpoint_url):
+    """Reject unsupported/private destinations; allow the built-in local calculator demo."""
+    try:
+        parsed = urlsplit(endpoint_url)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname:
+            return "Only HTTP and HTTPS SOAP endpoints are supported."
+        if parsed.username or parsed.password:
+            return "Credentials in endpoint URLs are not supported."
+        if parsed.hostname in ("127.0.0.1", "localhost", "::1"):
+            if parsed.port == 5000 and parsed.path == "/soap/calculator":
+                return None
+            return "Only the built-in local Calculator SOAP endpoint is allowed on loopback."
+        addresses = socket.getaddrinfo(parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80), type=socket.SOCK_STREAM)
+        if not addresses:
+            return "The SOAP endpoint hostname could not be resolved."
+        for item in addresses:
+            ip = ipaddress.ip_address(item[4][0])
+            if not ip.is_global:
+                return "Private, loopback and reserved network destinations are blocked."
+    except (ValueError, socket.gaierror, OSError) as exc:
+        return f"Invalid or unresolved SOAP endpoint: {exc}"
+    return None
+
 def dispatch_real_soap_request(endpoint_url, request_xml, soap_action="", soap_version="1.1", timeout=12, service_name="SOAPService", operation_name="Operation"):
     headers = {
         "User-Agent": "Integrated-Contract-Validator/1.0",
@@ -465,7 +491,8 @@ def dispatch_real_soap_request(endpoint_url, request_xml, soap_action="", soap_v
             endpoint_url,
             data=request_xml.encode('utf-8'),
             headers=headers,
-            timeout=timeout
+            timeout=timeout,
+            allow_redirects=False
         )
         latency_ms = round((time.perf_counter() - start_timer) * 1000, 2)
         status_code = resp.status_code
@@ -523,7 +550,7 @@ def dispatch_real_soap_request(endpoint_url, request_xml, soap_action="", soap_v
     errors = []
 
     try:
-        resp_root = etree.fromstring(response_text.encode('utf-8'))
+        resp_root = etree.fromstring(response_text.encode('utf-8'), etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False, huge_tree=False))
         fault_node = resp_root.find(f".//{{{SOAP_ENV_NS}}}Fault")
         if fault_node is None:
             fault_node = resp_root.find(f".//{{{SOAP12_ENV_NS}}}Fault")
@@ -858,34 +885,30 @@ def api_generate_envelope():
         soap_ver = data.get("soap_version", "1.1")
         params = data.get("parameters", {})
 
-        param_nodes = ""
-        for k, v in params.items():
-            param_nodes += f"      <{k}>{v}</{k}>\n"
-
-        if soap_ver == "1.2":
-            env = f"""<?xml version="1.0" encoding="utf-8"?>
-<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                 xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-                 xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"
-                 xmlns:tns="{target_ns}">
-  <soap12:Header/>
-  <soap12:Body>
-    <tns:{op_name}>
-{param_nodes}    </tns:{op_name}>
-  </soap12:Body>
-</soap12:Envelope>"""
-        else:
-            env = f"""<?xml version="1.0" encoding="utf-8"?>
-<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-               xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-               xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
-               xmlns:tns="{target_ns}">
-  <soap:Header/>
-  <soap:Body>
-    <tns:{op_name}>
-{param_nodes}    </tns:{op_name}>
-  </soap:Body>
-</soap:Envelope>"""
+        if soap_ver not in ("1.1", "1.2"):
+            return jsonify({"status": "error", "message": "soap_version must be 1.1 or 1.2."}), 400
+        if not isinstance(params, dict) or not isinstance(target_ns, str) or not isinstance(op_name, str):
+            return jsonify({"status": "error", "message": "Invalid operation, namespace or parameters."}), 400
+        if not op_name or not etree.QName(op_name).localname == op_name:
+            return jsonify({"status": "error", "message": "Operation name must be a valid XML local name."}), 400
+        envelope_ns = SOAP12_ENV_NS if soap_ver == "1.2" else SOAP_ENV_NS
+        envelope_prefix = "soap12" if soap_ver == "1.2" else "soap"
+        try:
+            root = etree.Element(
+                f"{{{envelope_ns}}}Envelope",
+                nsmap={envelope_prefix: envelope_ns, "tns": target_ns}
+            )
+            etree.SubElement(root, f"{{{envelope_ns}}}Header")
+            body = etree.SubElement(root, f"{{{envelope_ns}}}Body")
+            operation = etree.SubElement(body, f"{{{target_ns}}}{op_name}")
+            for name, value in params.items():
+                if not isinstance(name, str) or not name or etree.QName(name).localname != name:
+                    raise ValueError("Parameter names must be valid XML local names.")
+                child = etree.SubElement(operation, f"{{{target_ns}}}{name}")
+                child.text = str(value)
+            env = etree.tostring(root, encoding="utf-8", xml_declaration=True, pretty_print=True).decode("utf-8")
+        except (ValueError, TypeError, etree.LxmlError) as exc:
+            return jsonify({"status": "error", "message": f"Invalid XML field or namespace: {exc}"}), 400
 
         return jsonify({
             "status": "success",
@@ -973,7 +996,12 @@ def api_execute_soap():
         soap_ver = data.get("soap_version", "1.1")
         service_name = data.get("service_name", "SOAP Endpoint")
         operation_name = data.get("operation_name", "Operation")
-        timeout = float(data.get("timeout", 12))
+        try:
+            timeout = float(data.get("timeout", 12))
+        except (TypeError, ValueError):
+            return jsonify({"status": "error", "message": "Timeout must be numeric."}), 400
+        if not 1 <= timeout <= 30:
+            return jsonify({"status": "error", "message": "Timeout must be between 1 and 30 seconds."}), 400
 
         if not endpoint_url or not request_xml:
             return jsonify({
@@ -981,6 +1009,9 @@ def api_execute_soap():
                 "message": "Endpoint URL and SOAP Request XML are required."
             }), 400
 
+        endpoint_error = check_soap_endpoint(endpoint_url)
+        if endpoint_error:
+            return jsonify({"status": "error", "message": endpoint_error}), 400
         res = dispatch_real_soap_request(
             endpoint_url=endpoint_url,
             request_xml=request_xml,
@@ -1023,4 +1054,4 @@ if __name__ == "__main__":
     print(" Active Server running on http://127.0.0.1:5000")
     print(" Live SOAP Calculator Endpoint: http://127.0.0.1:5000/soap/calculator?wsdl")
     print("==========================================================================")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="127.0.0.1", port=5000, debug=False)
