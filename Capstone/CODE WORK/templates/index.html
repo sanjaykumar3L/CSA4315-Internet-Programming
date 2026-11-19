@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Integrated Web Service Interoperability & Data Contract Validation</title>
+  <title>Integrated Web Service Interoperability and Data Contract Validation for Reliable System Communication</title>
   <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Bootstrap Icons -->
@@ -66,8 +66,28 @@
       word-break: break-all;
     }
   </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/workbench.css') }}">
 </head>
-<body>
+<body data-theme="dark">
+  <a href="#workbenchMain" class="visually-hidden-focusable position-absolute top-0 start-0 p-2 bg-white text-dark" style="z-index:1200">Skip to application workspace</a>
+  <div class="workbench-mobile-shade" id="workbenchShade" onclick="toggleWorkbenchMenu(false)" aria-hidden="true"></div>
+  <aside class="workbench-sidebar" id="workbenchSidebar" aria-label="Project navigation">
+    <div class="workbench-brand">
+      <div class="workbench-brand-mark" aria-hidden="true"><i class="bi bi-diagram-3-fill"></i></div>
+      <div><strong>Contract Studio</strong><small>Interoperability workbench</small></div>
+    </div>
+    <div class="workbench-nav-label">Project workspace</div>
+    <nav class="workbench-nav" aria-label="Capstone modules">
+      <button type="button" class="workbench-nav-item is-active" data-workbench-tab="mod1" onclick="showWorkbenchTab('mod1')" aria-current="page" title="Module 1 — Web Service Configuration and Integration"><i class="bi bi-hdd-network" aria-hidden="true"></i><span>01 · Service configuration</span></button>
+      <button type="button" class="workbench-nav-item" data-workbench-tab="mod2" onclick="showWorkbenchTab('mod2')" title="Module 2 — Data Contract Validation and Compatibility Testing"><i class="bi bi-braces-asterisk" aria-hidden="true"></i><span>02 · Contract validation</span></button>
+      <button type="button" class="workbench-nav-item" data-workbench-tab="mod3" onclick="showWorkbenchTab('mod3')" title="Module 3 — Communication Monitoring and Validation Report Generation"><i class="bi bi-activity" aria-hidden="true"></i><span>03 · SOAP monitoring</span></button>
+      <button type="button" class="workbench-nav-item" data-workbench-tab="reports" onclick="showWorkbenchTab('reports')" title="Test execution history and PDF reports"><i class="bi bi-journal-check" aria-hidden="true"></i><span>History & reports</span></button>
+    </nav>
+    <div class="workbench-side-bottom">
+      <strong>CSA4315 · Internet Programming</strong><div>Batch 09 · Academic capstone</div>
+      <div style="margin-top:10px">XML Schema · WSDL · SOAP</div>
+    </div>
+  </aside>
 
   <!-- Top Header -->
   <header class="header-bar shadow-sm">
@@ -77,12 +97,12 @@
           <span class="badge bg-light text-dark fw-semibold mb-1">
             <i class="bi bi-mortarboard-fill text-primary me-1"></i> CSA4315 – Internet Programming | Batch 09
           </span>
-          <h1 class="h4 mb-0 fw-bold">Integrated Web Service Interoperability and Data Contract Validation</h1>
-          <div class="small opacity-75">Automated Multi-Layer Verification for Reliable Distributed System Communication</div>
+          <h1 class="h4 mb-0 fw-bold">Integrated Web Service Interoperability and Data Contract Validation for Reliable System Communication</h1>
+          <div class="small opacity-75">Configure services, inspect XML contracts, execute SOAP requests, and review test results</div>
         </div>
         <div class="text-end mt-2 mt-md-0">
           <span id="backendStatusBadge" class="badge bg-success px-3 py-2">
-            <i class="bi bi-link-45deg me-1"></i> Backend Connected (Flask API v1)
+            <i class="bi bi-link-45deg me-1"></i> Checking backend status…
           </span>
           <div class="small opacity-75 mt-1">Live Endpoint: <code>http://127.0.0.1:5000/soap/calculator</code></div>
         </div>
@@ -91,23 +111,42 @@
   </header>
 
   <!-- Main Container -->
-  <main class="container-fluid px-4 py-4">
+  <main id="workbenchMain" class="container-fluid px-4 py-4">
+    <div class="workbench-topline">
+      <div class="d-flex align-items-center gap-3">
+        <button class="workbench-mobile-toggle" id="workbenchMenuButton" type="button" onclick="toggleWorkbenchMenu()" aria-controls="workbenchSidebar" aria-expanded="false"><i class="bi bi-list" aria-hidden="true"></i> Menu</button>
+        <span class="workbench-eyebrow">Workspace / Overview</span>
+      </div>
+      <div class="workbench-controls">
+        <button class="workbench-theme-toggle" id="workbenchThemeButton" type="button" onclick="toggleWorkbenchTheme()" aria-label="Toggle appearance"><i class="bi bi-moon-stars" aria-hidden="true"></i> <span id="workbenchThemeText">Dark mode</span></button>
+      </div>
+    </div>
+    <div class="workbench-overview" aria-label="Recent test activity" aria-live="polite">
+      <div class="workbench-stat"><span>Recent test executions</span><strong id="wbTotal">—</strong><div class="workbench-stat-foot">From stored audit history</div></div>
+      <div class="workbench-stat is-success"><span>Passed tests</span><strong id="wbPassed">—</strong><div class="workbench-stat-foot">Recorded successful runs</div></div>
+      <div class="workbench-stat is-danger"><span>Failed tests</span><strong id="wbFailed">—</strong><div class="workbench-stat-foot">Recorded unsuccessful runs</div></div>
+      <div class="workbench-stat"><span>Average SOAP latency</span><strong id="wbLatency">—</strong><div class="workbench-stat-foot">Measured requests only · ms</div></div>
+    </div>
+    <div class="workbench-section-header">
+      <strong id="workbenchSectionTitle">Module 1 — Web Service Configuration and Integration</strong>
+      <small id="workbenchSectionSubtitle">Discover services and prepare SOAP requests</small>
+    </div>
 
     <!-- Navigation Tabs for Modules -->
     <ul class="nav nav-tabs mb-4" id="moduleTabs" role="tablist">
       <li class="nav-item">
         <button class="nav-link active" id="tab-mod1-btn" data-bs-toggle="tab" data-bs-target="#tab-mod1" type="button">
-          <i class="bi bi-gear-fill me-1 text-primary"></i> Module 1: Web Service Configuration & Integration
+          <i class="bi bi-gear-fill me-1 text-primary"></i> Module 1 — Web Service Configuration and Integration
         </button>
       </li>
       <li class="nav-item">
         <button class="nav-link" id="tab-mod2-btn" data-bs-toggle="tab" data-bs-target="#tab-mod2" type="button">
-          <i class="bi bi-file-earmark-check-fill me-1 text-success"></i> Module 2: Data Contract Validation & Compatibility
+          <i class="bi bi-file-earmark-check-fill me-1 text-success"></i> Module 2 — Data Contract Validation and Compatibility Testing
         </button>
       </li>
       <li class="nav-item">
         <button class="nav-link" id="tab-mod3-btn" data-bs-toggle="tab" data-bs-target="#tab-mod3" type="button">
-          <i class="bi bi-broadcast-pin me-1 text-danger"></i> Module 3: Communication Monitoring & Test Execution
+          <i class="bi bi-broadcast-pin me-1 text-danger"></i> Module 3 — Communication Monitoring and Validation Report Generation
         </button>
       </li>
       <li class="nav-item">
@@ -1149,5 +1188,80 @@
       }
     }
   </script>
+<script>
+  // Application-shell helpers; leave the existing tested module handlers intact.
+  const workbenchSectionInfo = {
+    mod1: ["Module 1 — Web Service Configuration and Integration", "Discover services and prepare SOAP requests"],
+    mod2: ["Module 2 — Data Contract Validation and Compatibility Testing", "Validate XML/XSD and evaluate contract changes"],
+    mod3: ["Module 3 — Communication Monitoring and Validation Report Generation", "Execute SOAP requests and inspect responses"],
+    reports: ["Test history and PDF reports", "Review recorded results and export audit evidence"]
+  };
+  function toggleWorkbenchMenu(force) {
+    const open = typeof force === "boolean" ? force : !document.body.classList.contains("workbench-nav-open");
+    document.body.classList.toggle("workbench-nav-open", open);
+    document.getElementById("workbenchMenuButton")?.setAttribute("aria-expanded", String(open));
+  }
+  function showWorkbenchTab(target) {
+    const btn = document.getElementById("tab-" + target + "-btn");
+    if (btn && window.bootstrap?.Tab) {
+      bootstrap.Tab.getOrCreateInstance(btn).show();
+      toggleWorkbenchMenu(false);
+    }
+  }
+  function syncWorkbenchTab(id) {
+    const selected = workbenchSectionInfo[id] || workbenchSectionInfo.mod1;
+    document.getElementById("workbenchSectionTitle").textContent = selected[0];
+    document.getElementById("workbenchSectionSubtitle").textContent = selected[1];
+    for (const item of document.querySelectorAll("[data-workbench-tab]")) {
+      const active = item.dataset.workbenchTab === id;
+      item.classList.toggle("is-active", active);
+      if (active) item.setAttribute("aria-current", "page");
+      else item.removeAttribute("aria-current");
+    }
+    if (id === "reports" && typeof fetchRecentReports === "function") fetchRecentReports();
+  }
+  function setWorkbenchTheme(theme) {
+    const next = theme === "light" ? "light" : "dark";
+    document.body.dataset.theme = next;
+    document.getElementById("workbenchThemeText").textContent = next === "dark" ? "Dark mode" : "Light mode";
+    document.querySelector("#workbenchThemeButton i").className = next === "dark" ? "bi bi-moon-stars" : "bi bi-sun";
+    try { localStorage.setItem("capstone-workbench-theme", next); } catch (_) {}
+  }
+  function toggleWorkbenchTheme() { setWorkbenchTheme(document.body.dataset.theme === "dark" ? "light" : "dark"); }
+  async function loadWorkbenchOverview() {
+    const badge = document.getElementById("backendStatusBadge");
+    try {
+      const response = await fetch("/api/v1/reports", {headers: {"Accept": "application/json"}});
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      const data = await response.json();
+      if (!Array.isArray(data.records)) throw new Error("Invalid audit data");
+      const rows = data.records;
+      const successful = rows.filter(r => r.status === "PASSED").length;
+      const failed = rows.filter(r => r.status === "FAILED").length;
+      const latency = rows.filter(r => r.test_type === "SOAP_COMMUNICATION" && Number.isFinite(Number(r.response_time_ms)) && Number(r.response_time_ms) > 0);
+      const average = latency.length ? Math.round(latency.reduce((sum, r) => sum + Number(r.response_time_ms), 0) / latency.length) : null;
+      document.getElementById("wbTotal").textContent = rows.length.toLocaleString();
+      document.getElementById("wbPassed").textContent = successful.toLocaleString();
+      document.getElementById("wbFailed").textContent = failed.toLocaleString();
+      document.getElementById("wbLatency").textContent = average === null ? "N/A" : average.toLocaleString();
+      badge.className = "badge px-3 py-2";
+      badge.innerHTML = '<i class="bi bi-check-circle me-1"></i> API connected';
+    } catch (e) {
+      badge.className = "badge bg-danger px-3 py-2";
+      badge.textContent = "API unavailable";
+      ["wbTotal","wbPassed","wbFailed","wbLatency"].forEach(id => document.getElementById(id).textContent = "—");
+    }
+  }
+  document.addEventListener("DOMContentLoaded", () => {
+    let preference = "dark";
+    try { preference = localStorage.getItem("capstone-workbench-theme") || "dark"; } catch (_) {}
+    setWorkbenchTheme(preference);
+    for (const id of Object.keys(workbenchSectionInfo)) {
+      document.getElementById("tab-" + id + "-btn")?.addEventListener("shown.bs.tab", () => syncWorkbenchTab(id));
+    }
+    loadWorkbenchOverview();
+    document.addEventListener("keydown", (event) => { if (event.key === "Escape") toggleWorkbenchMenu(false); });
+  });
+</script>
 </body>
 </html>
