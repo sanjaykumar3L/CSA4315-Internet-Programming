@@ -1,24 +1,27 @@
 @echo off
-title Web Service Interoperability & Contract Validation Platform
-color 0A
-
-echo =======================================================================
-echo   Starting: Web Service Interoperability and Data Contract Validation
-echo   Course: CSA4315 - Internet Programming
-echo =======================================================================
+setlocal
+title Capstone - Web Service Contract Studio
+echo ================================================
+echo   Web Service Interoperability Capstone
+echo   Starting local Flask application
+echo ================================================
 echo.
-
-cd /d "C:\Users\lsk87\OneDrive\Desktop\inventory\IP\Capstone"
-
-echo [1/2] Launching Web Browser at http://127.0.0.1:5000 ...
-start "" http://127.0.0.1:5000
-
-echo [2/2] Starting Python Flask Full-Stack Server...
-echo.
-python run.py
-
+cd /d "%~dp0"
+where python >nul 2>&1
 if errorlevel 1 (
-    echo.
-    echo [ERROR] An error occurred while starting the server.
-    pause
+  echo Python was not found on PATH. Install Python 3.10 or newer.
+  pause
+  exit /b 1
 )
+echo Installing dependencies if needed: python -m pip install -r requirements.txt
+echo Launching the local server at http://127.0.0.1:5000
+echo Press Ctrl+C to stop.
+start "" http://127.0.0.1:5000
+python run.py
+if errorlevel 1 (
+  echo.
+  echo Startup failed. Check installation and requirements.txt.
+  pause
+  exit /b 1
+)
+endlocal
