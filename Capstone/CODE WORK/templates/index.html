@@ -90,6 +90,12 @@
   </aside>
 
   <!-- Top Header -->
+  {% if is_serverless_preview %}
+  <div role="status" class="alert alert-warning rounded-0 mb-0 py-2 px-4 text-center small">
+    <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+    Online preview: test history uses temporary storage and may reset between requests or deployments. Persistent storage is not configured.
+  </div>
+  {% endif %}
   <header class="header-bar shadow-sm">
     <div class="container-fluid px-4">
       <div class="d-flex flex-wrap justify-content-between align-items-center">
@@ -104,7 +110,7 @@
           <span id="backendStatusBadge" class="badge bg-success px-3 py-2">
             <i class="bi bi-link-45deg me-1"></i> Checking backend status…
           </span>
-          <div class="small opacity-75 mt-1">Live Endpoint: <code>http://127.0.0.1:5000/soap/calculator</code></div>
+          <div class="small opacity-75 mt-1">Live Endpoint: <code>{{ request.host_url.rstrip('/') }}/soap/calculator</code></div>
         </div>
       </div>
     </div>
@@ -408,7 +414,7 @@
                   <label class="form-label small fw-semibold">Service Endpoint URL:</label>
                   <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
-                    <input type="text" id="soapEndpointUrl" class="form-control" value="http://127.0.0.1:5000/soap/calculator">
+                    <input type="text" id="soapEndpointUrl" class="form-control" value="{{ request.host_url.rstrip('/') }}/soap/calculator">
                   </div>
                 </div>
 
@@ -1148,7 +1154,7 @@
     function handleScenarioSelect() {
       const choice = document.getElementById("quickScenarioSelect").value;
       if (choice === "calc_add_valid") {
-        document.getElementById("soapEndpointUrl").value = "http://127.0.0.1:5000/soap/calculator";
+        document.getElementById("soapEndpointUrl").value = "{{ request.host_url.rstrip('/') }}/soap/calculator";
         document.getElementById("soapActionHeader").value = "http://example.com/calculator/Add";
         document.getElementById("soapRequestXml").value = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://example.com/calculator">
@@ -1161,7 +1167,7 @@
   </soap:Body>
 </soap:Envelope>`;
       } else if (choice === "calc_div_zero") {
-        document.getElementById("soapEndpointUrl").value = "http://127.0.0.1:5000/soap/calculator";
+        document.getElementById("soapEndpointUrl").value = "{{ request.host_url.rstrip('/') }}/soap/calculator";
         document.getElementById("soapActionHeader").value = "http://example.com/calculator/Divide";
         document.getElementById("soapRequestXml").value = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://example.com/calculator">
