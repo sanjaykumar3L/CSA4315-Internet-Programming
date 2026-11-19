@@ -8,6 +8,7 @@ from flask import Flask, request, jsonify, render_template, send_file, Response,
 from flask_cors import CORS
 import ipaddress
 import socket
+import uuid
 from urllib.parse import urlsplit
 from lxml import etree
 import requests
@@ -22,6 +23,7 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB max payload
 # Vercel Functions have a read-only deployment bundle. /tmp is scratch space only:
 # the SQLite database is intentionally EPHEMERAL in online preview.
 IS_VERCEL = bool(os.environ.get("VERCEL"))
+HAS_PERSISTENT_STORAGE = IS_VERCEL and bool(os.environ.get("BLOB_READ_WRITE_TOKEN"))
 RUNTIME_DIR = "/tmp/capstone-contract-studio" if IS_VERCEL else os.path.dirname(os.path.abspath(__file__))
 os.makedirs(RUNTIME_DIR, exist_ok=True)
 DB_PATH = os.path.join(RUNTIME_DIR, "test_history.db")
@@ -81,6 +83,10 @@ def init_db():
 init_db()
 
 def db_save_service(service_name, target_namespace, endpoint_url, wsdl_content):
+    if HAS_PERSISTENT_STORAGE:
+        # WSDL parsing must not save arbitrary uploaded documents publicly.
+        # Service definitions are transient; test audit records are durable.
+        return None
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -99,6 +105,24 @@ def db_save_service(service_name, target_namespace, endpoint_url, wsdl_content):
 def db_save_test_record(service_name, operation_name, endpoint_url, test_type, status,
                         response_time_ms, http_status_code, request_xml, response_xml,
                         validation_errors, compatibility_assessment, summary):
+    if HAS_PERSISTENT_STORAGE:
+        from persistent_history import create_record
+        audit = {
+            "service_name": str(service_name)[:160],
+            "operation_name": str(operation_name)[:160],
+            "endpoint_url": str(endpoint_url)[:400],
+            "test_type": str(test_type)[:64],
+            "status": str(status)[:32],
+            "response_time_ms": float(response_time_ms or 0),
+            "http_status_code": int(http_status_code or 0),
+            "request_xml": str(request_xml)[:30000],
+            "response_xml": str(response_xml)[:30000],
+            "validation_errors": json.dumps(validation_errors),
+            "validation_errors_list": validation_errors if isinstance(validation_errors, list) else [],
+            "compatibility_assessment": str(compatibility_assessment)[:3000],
+            "summary": str(summary)[:1000],
+        }
+        return create_record(audit)
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -123,6 +147,9 @@ def db_save_test_record(service_name, operation_name, endpoint_url, test_type, s
         return None
 
 def db_get_test_records(limit=50):
+    if HAS_PERSISTENT_STORAGE:
+        from persistent_history import list_records
+        return list_records(limit=limit)
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -143,6 +170,9 @@ def db_get_test_records(limit=50):
         return []
 
 def db_get_record_by_id(record_id):
+    if HAS_PERSISTENT_STORAGE:
+        from persistent_history import get_record
+        return get_record(record_id)
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -850,7 +880,7 @@ def generate_soap_fault(fault_code, fault_string):
 # ---------------------------------------------------------
 @app.route("/")
 def index_page():
-    return render_template("index.html", is_serverless_preview=IS_VERCEL)
+    return render_template("index.html", is_serverless_preview=IS_VERCEL, is_persistent_history=HAS_PERSISTENT_STORAGE)
 
 # API 1: Parse WSDL
 @app.route("/api/v1/wsdl/parse", methods=["POST"])
@@ -1061,7 +1091,7 @@ def api_get_runtime():
     return jsonify({
         "status": "success",
         "mode": "vercel-preview" if IS_VERCEL else "local",
-        "history_persistence": "ephemeral" if IS_VERCEL else "local-sqlite",
+        "history_persistence": ("vercel-blob" if HAS_PERSISTENT_STORAGE else ("ephemeral" if IS_VERCEL else "local-sqlite")),
     }), 200
 
 
@@ -1077,9 +1107,13 @@ def download_pdf_audit(record_id):
     if not rec:
         return "Test record not found", 404
 
-    target_pdf = os.path.join(PDF_DIR, f"Validation_Report_{record_id}.pdf")
+    # Render from durable record into a memory buffer instead of temporary file.
+    # The ReportLab utility only requires a writable file-like output target.
+    target_pdf = io.BytesIO()
     build_pdf_document(rec, target_pdf)
-    return send_file(target_pdf, as_attachment=True, download_name=f"Validation_Report_Test_{record_id}.pdf")
+    target_pdf.seek(0)
+    return send_file(target_pdf, as_attachment=True, mimetype="application/pdf",
+                     download_name=f"Validation_Report_Test_{record_id}.pdf")
 
 # ---------------------------------------------------------
 # Launcher Entrypoint
