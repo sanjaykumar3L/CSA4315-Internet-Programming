@@ -10,7 +10,8 @@ import secrets
 import time
 from datetime import datetime, timezone
 
-from vercel.blob import put, list_objects, get
+from vercel.blob.sync import put_blob, query_blobs, get_blob
+from vercel.blob.errors import BlobNotFoundError
 
 PREFIX = "capstone-records/v1/"
 
@@ -27,30 +28,25 @@ def create_record(payload):
         **payload,
     }
     # Never silently claim success if durable storage failed.
-    put(pathname, json.dumps(record, ensure_ascii=False).encode("utf-8"),
-        access="private", content_type="application/json",
-        add_random_suffix=False)
+    put_blob(pathname, json.dumps(record, ensure_ascii=False).encode("utf-8"),
+             access="private", content_type="application/json",
+             add_random_suffix=False)
     return record_id
 
 
 def _read_blob(path):
-    result = get(path, access="private")
-    if result is None or result.status_code != 200 or result.stream is None:
+    try:
+        result = get_blob(path, access="private")
+    except BlobNotFoundError:
         return None
-    data = b"".join(result.stream)
-    return json.loads(data.decode("utf-8"))
+    if result is None:
+        return None
+    return json.loads(result.body.decode("utf-8"))
 
 
 def list_records(limit=100):
-    candidates = []
-    cursor = None
-    # Pagination is important once the project has >1000 test runs.
-    for _ in range(50):
-        page = list_objects(prefix=PREFIX, limit=1000, cursor=cursor)
-        candidates.extend(page.blobs)
-        if not page.has_more or not page.cursor:
-            break
-        cursor = page.cursor
+    # The current Vercel Python SDK yields a paginated iterator of blob entries.
+    candidates = list(query_blobs(prefix=PREFIX, page_size=1000))
     candidates.sort(key=lambda blob: blob.pathname, reverse=True)
     records = []
     for blob in candidates[:max(1, limit)]:
@@ -63,8 +59,7 @@ def list_records(limit=100):
 
 def get_record(record_id):
     target = str(int(record_id)) + "-"
-    page = list_objects(prefix=PREFIX + target, limit=10)
-    for blob in page.blobs:
+    for blob in query_blobs(prefix=PREFIX + target, page_size=20):
         record = _read_blob(blob.pathname)
         if record and int(record.get("id", -1)) == int(record_id):
             record["validation_errors_list"] = record.get("validation_errors_list", [])
