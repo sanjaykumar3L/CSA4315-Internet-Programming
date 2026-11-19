@@ -1,47 +1,64 @@
-# Vercel online preview deployment
+# Verified online deployment — Capstone Contract Studio
 
-This setup affects **only** `Capstone/CODE WORK/`, not NetShield or any other repository directory.
+> Scope: `Capstone/CODE WORK/` in `sanjaykumar3L/CSA4315-Internet-Programming`.
+> No changes to NetShield or repository `main`.
 
-## Status and safeguards
+## Current deployment
 
-- Deployment branch: `deployment/capstone-vercel-preview`.
-- Flask entry point: `app.py`, with `requirements.txt` in the same directory.
-- Frontend entry point: `templates/index.html`.
-- Vercel project **Root Directory** must be `Capstone/CODE WORK` (relative to the repository root).
-- Framework preset: **Flask**, with automatic Python dependency installation.
-- Deploy this **preview branch**, not `main`, while testing. Keep production private/protected until functionality and security have been reviewed.
+- **Stable URL**: https://capstone-contract-studio-preview.vercel.app
+- **Vercel team**: `lsk10`
+- **Vercel project**: `capstone-contract-studio-preview`
+- **Framework**: Flask (Python 3.12 runtime on Vercel)
+- **Vercel root directory**: `Capstone/CODE WORK`
+- **Git branch**: `deployment/capstone-vercel-preview`
+- **Access**: Vercel Authentication enabled on all deployment URLs. Remain protected until authorization, rate limiting and network egress policy have been independently reviewed.
+- **Storage**: private Vercel Blob (`BLOB_READ_WRITE_TOKEN` injected through Vercel project integration). Audit documents survive redeployments; local development still uses SQLite.
 
-## Online-only changes
+## Tested on November 19, 2026
 
-1. The Calculator demonstration WSDL dynamically advertises the deployed origin rather than 127.0.0.1.
-2. SOAP requests to this application's `/soap/calculator` are handled through the actual built-in Flask SOAP endpoint without a self-referential network call. External service calls continue through the SOAP dispatcher.
-3. SQLite audit history and PDF output are redirected to a temporary filesystem directory on Vercel. **This is nonpersistent** and can disappear on any cold start, concurrent invocation, scaling event, or redeploy. The UI visibly warns about this limitation.
-4. The runtime endpoint `GET /api/v1/runtime` identifies local and preview modes and whether storage is ephemeral.
-5. Local Windows BAT workflow is retained unchanged by this deployment branch.
+In an isolated sandbox, `python -m unittest discover -s tests -v` completed with **17 tests passing**.
 
-## Important next milestone: persistent storage
+Online application checks against a protected deployment:
 
-Before calling this a reliable hosted application, migrate the audit trail to durable managed Postgres (or equivalent) and save reports in persistent object storage or generate them on request without assuming local files persist. Do not expose production services or real user data while using ephemeral preview storage.
+| Operation | Result |
+| --- | --- |
+| Root HTML and UI CSS | HTTP 200 |
+| Runtime API | HTTP 200; `history_persistence: "vercel-blob"` |
+| Calculator WSDL | HTTP 200; dynamically advertises deployment URL |
+| Module 1: parse WSDL | HTTP 200, two operations found |
+| Module 1: generate SOAP envelope | HTTP 200; unsafe input escaped |
+| Module 2: valid XML vs XSD | HTTP 200; PASSED |
+| Module 2: incorrect datatype | HTTP 422; FAILED |
+| Module 2: mandatory field omitted | HTTP 422; FAILED |
+| Module 2: compatible schema update | HTTP 200; compatible |
+| Module 2: breaking schema update | HTTP 200; incompatible with two changes |
+| Module 3: SOAP Add (7 + 8) | HTTP 200; PASSED, result 15 |
+| Module 3: division by zero | SOAP Fault detected; FAILED, upstream HTTP 500 |
+| Persistent history | Contains records from separate prior requests |
+| On-demand PDF download | HTTP 200, valid PDF binary |
+| Stable alias | Reassigned to the tested preview build and checked for `vercel-blob` and fixed UI CSS |
 
-## Security requirements
+The UI width correction subtracts the fixed sidebar width from both main content and header, including Bootstrap's `container-fluid` default width. **Actual browser screenshot comparisons after this change are still pending**, so do not claim visual QA has been completed on all screen sizes.
 
-The remote SOAP executor should require authentication and authorization before public production access. The current endpoint restrictions reject private/reserved networks and disable redirects but do **not** eliminate DNS rebinding, proxy or alternate destination issues. Use egress controls or DNS/IP pinning, plus rate limiting and request quotas, before supporting arbitrary internet users.
+## Data model and limitations
 
-## Online verification
+Durable test logs are stored as separate JSON files under `capstone-records/v1/` in **private** Vercel Blob. Report PDFs are generated in memory from saved records. Data remains available between serverless invocations and deployments, unlike `/tmp` SQLite.
 
-Once Vercel preview deployment exists:
+Caveats:
+- The audit log is **append-only object storage**, not a relational reporting database. Browsing history enumerates blob objects; large history volumes will require a proper indexed database, pagination and retention policy.
+- Do not store production credentials or private customer payloads. Educational XML test payloads may be recorded in the private audit store.
+- The application requires Vercel Authentication to stay protected. The external SOAP executor is for controlled classroom testing and still requires hardened DNS/IP egress, rate limiting, quotas and explicit user authorization before public release.
+- No custom domain, paid subscription upgrade, or NetShield configuration was changed.
+- Tests verify prepared requests and core backend behavior; real third-party SOAP endpoints can fail owing to TLS, CORS, rate limits or upstream service behavior.
 
-- Open `/` and confirm the application renders.
-- Open `/api/v1/runtime` and confirm `mode=vercel-preview` and `history_persistence=ephemeral`.
-- Open `/soap/calculator?wsdl`; confirm it advertises the deployment hostname.
-- Parse that WSDL in Module 1.
-- Validate valid, missing-field and data-type-error XML in Module 2.
-- Execute Calculator Add and division-by-zero SOAP Fault cases in Module 3.
-- Download a test PDF immediately after generating it, if the same temporary record is still available.
-- Verify error logs and function execution limits; do not claim history persistence.
-- Confirm responsive navigation and theme switching.
-- Run `python -m unittest discover -s tests -v` in a configured local environment and report actual test results.
+## Development
 
-## Maintenance
+```bash
+python -m pip install -r requirements.txt
+python -m unittest discover -s tests -v
+python run.py
+```
 
-All changes remain in GitHub; Vercel will use Git commits. Production publication and merging to main are separate actions, to be performed only after review.
+Open `http://127.0.0.1:5000` locally. No Vercel Blob token is required for normal local SQLite mode.
+
+The pull requests remain **draft** and unmerged; this online deployment tests the branch directly. Review and merge only when satisfied with the result.
