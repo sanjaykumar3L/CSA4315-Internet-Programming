@@ -16,13 +16,15 @@
 
 ## Tested on November 19, 2026
 
-In an isolated sandbox, `python -m unittest discover -s tests -v` completed with **17 tests passing**.
+In an isolated sandbox, `python -m unittest discover -s tests -v` completed with **19 tests passing**.
 
 Online application checks against a protected deployment:
 
 | Operation | Result |
 | --- | --- |
 | Root HTML and UI CSS | HTTP 200 |
+| Module 1: save service configuration | HTTP 200; durable service catalog persisted |
+| Module 1: reload service catalog | HTTP 200; contains CalculatorService |
 | Runtime API | HTTP 200; `history_persistence: "vercel-blob"` |
 | Calculator WSDL | HTTP 200; dynamically advertises deployment URL |
 | Module 1: parse WSDL | HTTP 200, two operations found |
@@ -41,6 +43,8 @@ Online application checks against a protected deployment:
 The UI width correction subtracts the fixed sidebar width from both main content and header, including Bootstrap's `container-fluid` default width. **Actual browser screenshot comparisons after this change are still pending**, so do not claim visual QA has been completed on all screen sizes.
 
 ## Data model and limitations
+
+WSDL configurations are also stored separately under `capstone-services/v1/` in the same private Blob store; the UI retrieves a metadata-only service catalog.
 
 Durable test logs are stored as separate JSON files under `capstone-records/v1/` in **private** Vercel Blob. Report PDFs are generated in memory from saved records. Data remains available between serverless invocations and deployments, unlike `/tmp` SQLite.
 
