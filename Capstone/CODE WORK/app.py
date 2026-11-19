@@ -889,7 +889,10 @@ def api_generate_envelope():
             return jsonify({"status": "error", "message": "soap_version must be 1.1 or 1.2."}), 400
         if not isinstance(params, dict) or not isinstance(target_ns, str) or not isinstance(op_name, str):
             return jsonify({"status": "error", "message": "Invalid operation, namespace or parameters."}), 400
-        if not op_name or not etree.QName(op_name).localname == op_name:
+        try:
+            if not op_name or etree.QName(op_name).localname != op_name:
+                raise ValueError("Invalid operation name")
+        except (ValueError, TypeError):
             return jsonify({"status": "error", "message": "Operation name must be a valid XML local name."}), 400
         envelope_ns = SOAP12_ENV_NS if soap_ver == "1.2" else SOAP_ENV_NS
         envelope_prefix = "soap12" if soap_ver == "1.2" else "soap"
