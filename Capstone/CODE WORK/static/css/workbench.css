@@ -246,3 +246,28 @@ hr { border-color: var(--wb-line); opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+
+/* Persistent-storage banner follows the fixed navigation rail. */
+.workbench-storage-notice {
+  margin-left: var(--wb-nav-width);
+  width: calc(100% - var(--wb-nav-width));
+  padding: 11px 28px;
+  font-size: .8rem;
+  line-height: 1.55;
+  text-align: center;
+  border-bottom: 1px solid var(--wb-line);
+}
+.workbench-storage-notice.is-durable {
+  background: #11342e;
+  color: #adf6da;
+  border-bottom-color: #266854;
+}
+.workbench-storage-notice.is-temporary {
+  background: #4b3517;
+  color: #ffe1ab;
+  border-bottom-color: #81633b;
+}
+@media (max-width: 900px) {
+  .workbench-storage-notice { padding: 9px 16px; font-size: .74rem; }
+}
