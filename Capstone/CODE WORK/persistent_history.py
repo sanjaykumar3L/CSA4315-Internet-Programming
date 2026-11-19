@@ -65,3 +65,38 @@ def get_record(record_id):
             record["validation_errors_list"] = record.get("validation_errors_list", [])
             return record
     return None
+
+
+SERVICE_PREFIX = "capstone-services/v1/"
+
+
+def create_service(service_name, target_namespace, endpoint_url, wsdl_content):
+    import uuid
+    service_id = int(time.time() * 1000) * 1000 + secrets.randbelow(1000)
+    pathname = f"{SERVICE_PREFIX}{service_id}-{uuid.uuid4().hex}.json"
+    document = {
+        "id": service_id,
+        "service_name": str(service_name)[:200],
+        "target_namespace": str(target_namespace)[:500],
+        "endpoint_url": str(endpoint_url)[:1000],
+        "wsdl_content": str(wsdl_content)[:150000],
+        "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    put_blob(pathname, json.dumps(document, ensure_ascii=False).encode("utf-8"),
+             access="private", content_type="application/json",
+             add_random_suffix=False)
+    return service_id
+
+
+def list_services(limit=100):
+    entries = list(query_blobs(prefix=SERVICE_PREFIX, page_size=1000))
+    entries.sort(key=lambda blob: blob.pathname, reverse=True)
+    records = []
+    for entry in entries[:max(1, limit)]:
+        doc = _read_blob(entry.pathname)
+        if doc is not None:
+            # Keep WSDL content in private storage; return metadata to UI.
+            doc.pop("wsdl_content", None)
+            records.append(doc)
+    return records
+
