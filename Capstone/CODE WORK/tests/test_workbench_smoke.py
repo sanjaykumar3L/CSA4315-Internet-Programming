@@ -72,6 +72,32 @@ class CapstoneWorkbenchSmokeTests(unittest.TestCase):
         self.assertIsNotNone(check_soap_endpoint("file:///etc/passwd"))
         self.assertIsNone(check_soap_endpoint("http://127.0.0.1:5000/soap/calculator"))
 
+    def test_hosted_wsdl_uses_request_origin(self):
+        response = self.client.get("/soap/calculator?wsdl", base_url="https://capstone-preview.example")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"https://capstone-preview.example/soap/calculator", response.data)
+
+    def test_same_origin_calculator_uses_local_handler(self):
+        payload = """<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+          xmlns:tns="http://example.com/calculator"><soap:Body>
+          <tns:Add><tns:intA>7</tns:intA><tns:intB>8</tns:intB></tns:Add>
+          </soap:Body></soap:Envelope>"""
+        response = self.client.post(
+            "/api/v1/soap/execute",
+            base_url="https://capstone-preview.example",
+            json={
+                "endpoint_url": "https://capstone-preview.example/soap/calculator",
+                "request_xml": payload,
+                "soap_action": "http://example.com/calculator/Add",
+                "service_name": "CalculatorService",
+                "operation_name": "Add",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.get_json()
+        self.assertEqual(body["status"], "PASSED")
+        self.assertIn("<tns:AddResult>15</tns:AddResult>", body["response_xml"])
+
     def test_invalid_timeout_rejected_before_network_call(self):
         response = self.client.post("/api/v1/soap/execute", json={
             "endpoint_url": "https://example.com/api",
