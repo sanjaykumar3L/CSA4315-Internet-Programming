@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Integrated Web Service Interoperability & Data Contract Validation</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary-navy: #0f172a;
+      --accent-blue: #1e40af;
+      --subtle-blue: #2563eb;
+      --bg-slate: #f8fafc;
+      --card-border: #e2e8f0;
+    }
+    body {
+      background-color: var(--bg-slate);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #334155;
+    }
+    .header-bar {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+      color: #ffffff;
+      padding: 1.25rem 0;
+      border-bottom: 3px solid #3b82f6;
+    }
+    .nav-tabs .nav-link {
+      color: #64748b;
+      font-weight: 600;
+      border: none;
+      padding: 0.75rem 1.25rem;
+      border-radius: 0.5rem 0.5rem 0 0;
+    }
+    .nav-tabs .nav-link.active {
+      color: #1e40af;
+      background-color: #ffffff;
+      border-bottom: 3px solid #2563eb;
+    }
+    .card {
+      border: 1px solid var(--card-border);
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      background-color: #ffffff;
+    }
+    .code-area {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.82rem;
+      background-color: #0f172a;
+      color: #f1f5f9;
+      border-radius: 0.375rem;
+      padding: 0.75rem;
+    }
+    textarea.code-font {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.83rem;
+      line-height: 1.4;
+      background-color: #fdfefe;
+    }
+    .xml-box {
+      max-height: 380px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header class="header-bar shadow-sm">
+    <div class="container-fluid px-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-center">
+        <div>
+          <span class="badge bg-light text-dark fw-semibold mb-1">
+            <i class="bi bi-mortarboard-fill text-primary me-1"></i> CSA4315 – Internet Programming | Batch 09
+          </span>
+          <h1 class="h4 mb-0 fw-bold">Integrated Web Service Interoperability and Data Contract Validation</h1>
+          <div class="small opacity-75">Automated Multi-Layer Verification for Reliable Distributed System Communication</div>
+        </div>
+        <div class="text-end mt-2 mt-md-0">
+          <span id="backendStatusBadge" class="badge bg-success px-3 py-2">
+            <i class="bi bi-link-45deg me-1"></i> Backend Connected (Flask API v1)
+          </span>
+          <div class="small opacity-75 mt-1">Live Endpoint: <code>http://127.0.0.1:5000/soap/calculator</code></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="container-fluid px-4 py-4">
+
+    <!-- Navigation Tabs for Modules -->
+    <ul class="nav nav-tabs mb-4" id="moduleTabs" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active" id="tab-mod1-btn" data-bs-toggle="tab" data-bs-target="#tab-mod1" type="button">
+          <i class="bi bi-gear-fill me-1 text-primary"></i> Module 1: Web Service Configuration & Integration
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" id="tab-mod2-btn" data-bs-toggle="tab" data-bs-target="#tab-mod2" type="button">
+          <i class="bi bi-file-earmark-check-fill me-1 text-success"></i> Module 2: Data Contract Validation & Compatibility
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" id="tab-mod3-btn" data-bs-toggle="tab" data-bs-target="#tab-mod3" type="button">
+          <i class="bi bi-broadcast-pin me-1 text-danger"></i> Module 3: Communication Monitoring & Test Execution
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" id="tab-reports-btn" data-bs-toggle="tab" data-bs-target="#tab-reports" type="button" onclick="fetchRecentReports()">
+          <i class="bi bi-clock-history me-1 text-warning"></i> Audit Logs & PDF Reports
+        </button>
+      </li>
+    </ul>
+
+    <!-- Tab Contents -->
+    <div class="tab-content" id="moduleTabsContent">
+
+      <!-- ============================================================== -->
+      <!-- MODULE 1: Web Service Configuration and Integration           -->
+      <!-- ============================================================== -->
+      <div class="tab-pane fade show active" id="tab-mod1" role="tabpanel">
+        <div class="row g-4">
+          <!-- WSDL Input & Parser -->
+          <div class="col-lg-7">
+            <div class="card h-100">
+              <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold text-dark">
+                  <i class="bi bi-file-code-fill text-primary me-2"></i> WSDL Service Definition
+                </h5>
+                <div class="d-flex gap-2">
+                  <button class="btn btn-sm btn-outline-secondary" onclick="loadLiveSampleWsdl('calculator')">Load Calculator WSDL</button>
+                  <button class="btn btn-sm btn-outline-secondary" onclick="loadExternalNumberWsdl()">Load NumberConversion WSDL</button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold">Upload WSDL File (.wsdl, .xml):</label>
+                  <input type="file" id="wsdlFileInput" class="form-control form-control-sm" accept=".wsdl,.xml">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold">Or Paste WSDL XML Content:</label>
+                  <textarea id="wsdlContentInput" class="form-control code-font" rows="12" placeholder="Paste WSDL definition XML here..."></textarea>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                  <button id="btnParseWsdl" class="btn btn-primary px-4" onclick="handleParseWsdl()">
+                    <i class="bi bi-cpu me-1"></i> Parse & Discover Operations
+                  </button>
+                  <span class="small text-muted">Parsed dynamically via C-level <code>lxml</code></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Parsed Discovery Results & Request Generator -->
+          <div class="col-lg-5">
+            <div class="card mb-4">
+              <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold text-dark">
+                  <i class="bi bi-compass-fill text-success me-2"></i> Discovered Operations & Endpoints
+                </h5>
+              </div>
+              <div class="card-body">
+                <div id="wsdlSummaryNotice" class="text-muted small mb-3">
+                  <i class="bi bi-info-circle me-1"></i> No WSDL parsed yet. Upload or paste a WSDL and click <strong>Parse</strong>.
+                </div>
+
+                <div id="wsdlMetaContainer" class="d-none">
+                  <div class="mb-2">
+                    <span class="text-muted small">Service Name:</span>
+                    <strong id="dispServiceName" class="d-block text-primary">-</strong>
+                  </div>
+                  <div class="mb-2">
+                    <span class="text-muted small">Target Namespace:</span>
+                    <code id="dispTargetNamespace" class="d-block small text-truncate">-</code>
+                  </div>
+                  <div class="mb-3">
+                    <span class="text-muted small">Discovered Endpoint URL:</span>
+                    <code id="dispEndpointUrl" class="d-block small text-truncate text-success">-</code>
+                  </div>
+                </div>
+
+                <!-- Operations Select Dropdown (POPULATED ONLY VIA REAL BACKEND JSON) -->
+                <div class="mb-3">
+                  <label class="form-label fw-semibold small">Available Operations (From WSDL portType):</label>
+                  <select id="operationsDropdown" class="form-select" onchange="handleOperationSelected()" disabled>
+                    <option value="">-- No Operations Loaded --</option>
+                  </select>
+                </div>
+
+                <div id="operationParamsContainer" class="mb-3"></div>
+
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold">SOAP Protocol Version:</label>
+                  <div class="d-flex gap-3">
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="soapVersionRadio" id="soapVer11" value="1.1" checked>
+                      <label class="form-check-label small" for="soapVer11">SOAP 1.1</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="soapVersionRadio" id="soapVer12" value="1.2">
+                      <label class="form-check-label small" for="soapVer12">SOAP 1.2</label>
+                    </div>
+                  </div>
+                </div>
+
+                <button id="btnGenerateEnvelope" class="btn btn-outline-success w-100 mb-3" onclick="handleGenerateEnvelope()" disabled>
+                  <i class="bi bi-magic me-1"></i> Generate Conforming SOAP Request Envelope
+                </button>
+
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold">Generated SOAP Request Envelope:</label>
+                  <textarea id="generatedSoapEnvelope" class="form-control code-font" rows="8" placeholder="SOAP Request envelope will be generated here..."></textarea>
+                </div>
+
+                <button class="btn btn-dark btn-sm w-100" onclick="transferToModule3()">
+                  <i class="bi bi-arrow-right-circle me-1"></i> Send this Payload to Module 3 (Live Execution)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- MODULE 2: Data Contract Validation & Compatibility Testing    -->
+      <!-- ============================================================== -->
+      <div class="tab-pane fade" id="tab-mod2" role="tabpanel">
+        
+        <!-- Sub-tabs for Part A and Part B -->
+        <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active btn-sm" id="pills-val-tab" data-bs-toggle="pill" data-bs-target="#pills-val" type="button">
+              <i class="bi bi-shield-check me-1"></i> Part A: XML Schema & Data Type Validation
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link btn-sm" id="pills-compat-tab" data-bs-toggle="pill" data-bs-target="#pills-compat" type="button">
+              <i class="bi bi-shuffle me-1"></i> Part B: Schema Compatibility Assessment (V1 vs V2 Diff)
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content" id="pills-tabContent">
+          <!-- Part A: XML vs XSD Validation -->
+          <div class="tab-pane fade show active" id="pills-val" role="tabpanel">
+            <div class="row g-4 mb-3">
+              <!-- XML Input -->
+              <div class="col-lg-6">
+                <div class="card h-100">
+                  <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-filetype-xml text-primary me-2"></i> XML Message Instance</h6>
+                    <div class="d-flex gap-1">
+                      <button class="btn btn-xs btn-outline-success py-0 px-2 small" onclick="loadValidationCase('valid')">1. Valid</button>
+                      <button class="btn btn-xs btn-outline-danger py-0 px-2 small" onclick="loadValidationCase('type_error')">2. Type Error</button>
+                      <button class="btn btn-xs btn-outline-warning py-0 px-2 small text-dark" onclick="loadValidationCase('missing_field')">3. Missing Field</button>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <textarea id="valXmlInput" class="form-control code-font" rows="13" placeholder="Paste XML document or SOAP Body payload here..."></textarea>
+                  </div>
+                </div>
+              </div>
+
+              <!-- XSD Input -->
+              <div class="col-lg-6">
+                <div class="card h-100">
+                  <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-file-earmark-code text-secondary me-2"></i> XML Schema (XSD) Contract</h6>
+                    <button class="btn btn-xs btn-outline-secondary py-0 px-2 small" onclick="loadCalculatorSchema()">Load Standard Calculator XSD</button>
+                  </div>
+                  <div class="card-body">
+                    <textarea id="valXsdInput" class="form-control code-font" rows="13" placeholder="Paste standard XSD Schema definition here..."></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card p-3 mb-4">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="small text-muted">
+                  <i class="bi bi-check2-all text-success me-1"></i> Verifies XML Syntax &rarr; Compiles XSD Schema &rarr; Validates Data Types & Occurrences.
+                </div>
+                <button id="btnRunValidation" class="btn btn-success px-4" onclick="handleValidateContract()">
+                  <i class="bi bi-shield-check me-1"></i> Run Real Contract Validation
+                </button>
+              </div>
+            </div>
+
+            <!-- Validation Diagnostic Output -->
+            <div id="validationResultCard" class="card shadow-sm d-none mb-4">
+              <div id="valResultHeader" class="card-header py-3 fw-bold"></div>
+              <div class="card-body">
+                <p id="valResultSummary" class="mb-3"></p>
+                <div id="valErrorsContainer"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Part B: Compatibility Assessment (V1 vs V2) -->
+          <div class="tab-pane fade" id="pills-compat" role="tabpanel">
+            <div class="card mb-4">
+              <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-diagram-2 text-primary me-2"></i> Contract Version Diffing (V1 vs V2)</h6>
+                <div class="small text-muted">Detect breaking changes between consumer contract (V1) and provider update (V2)</div>
+              </div>
+              <div class="card-body">
+                <div class="row g-4 mb-3">
+                  <div class="col-md-6">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <label class="form-label small fw-semibold mb-0">Base Contract (Schema V1 - Consumer):</label>
+                      <button class="btn btn-xs btn-outline-secondary py-0" onclick="loadCompatSample('v1')">Load Base V1</button>
+                    </div>
+                    <textarea id="compatV1Input" class="form-control code-font" rows="10" placeholder="Paste Base Schema V1 XSD here..."></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <label class="form-label small fw-semibold mb-0">Updated Contract (Schema V2 - Provider):</label>
+                      <div>
+                        <button class="btn btn-xs btn-outline-danger py-0 me-1" onclick="loadCompatSample('v2_breaking')">Load Breaking V2</button>
+                        <button class="btn btn-xs btn-outline-success py-0" onclick="loadCompatSample('v2_compatible')">Load Compatible V2</button>
+                      </div>
+                    </div>
+                    <textarea id="compatV2Input" class="form-control code-font" rows="10" placeholder="Paste Updated Schema V2 XSD here..."></textarea>
+                  </div>
+                </div>
+                <div class="text-end">
+                  <button id="btnRunCompat" class="btn btn-primary" onclick="handleRunCompatibility()">
+                    <i class="bi bi-shuffle me-1"></i> Compare Schemas & Assess Compatibility
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Compatibility Output -->
+            <div id="compatResultCard" class="card d-none mb-4">
+              <div id="compatHeader" class="card-header py-3 fw-bold"></div>
+              <div class="card-body" id="compatBody"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- MODULE 3: Communication Monitoring & Test Execution           -->
+      <!-- ============================================================== -->
+      <div class="tab-pane fade" id="tab-mod3" role="tabpanel">
+        <div class="row g-4">
+          <!-- SOAP Dispatcher -->
+          <div class="col-lg-6">
+            <div class="card h-100">
+              <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-send text-primary me-2"></i> SOAP Request Dispatcher</h5>
+                <div>
+                  <select id="quickScenarioSelect" class="form-select form-select-sm" onchange="handleScenarioSelect()">
+                    <option value="">-- Load Quick Test Scenario --</option>
+                    <option value="calc_add_valid">1. Calculator Add: Valid (25 + 75 = 100)</option>
+                    <option value="calc_div_zero">2. Calculator Divide: Zero Division (SOAP Fault)</option>
+                    <option value="external_number">3. Live External Service (DataAccess NumberConversion)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold">Service Endpoint URL:</label>
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                    <input type="text" id="soapEndpointUrl" class="form-control" value="http://127.0.0.1:5000/soap/calculator">
+                  </div>
+                </div>
+
+                <div class="row mb-3">
+                  <div class="col-md-8">
+                    <label class="form-label small fw-semibold">SOAPAction Header:</label>
+                    <input type="text" id="soapActionHeader" class="form-control form-control-sm" value="http://example.com/calculator/Add">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small fw-semibold">SOAP Version:</label>
+                    <select id="soapVersionSelect" class="form-select form-select-sm">
+                      <option value="1.1" selected>SOAP 1.1</option>
+                      <option value="1.2">SOAP 1.2</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold">SOAP Request XML Envelope:</label>
+                  <textarea id="soapRequestXml" class="form-control code-font" rows="12"><?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://example.com/calculator">
+  <soap:Header/>
+  <soap:Body>
+    <tns:Add>
+      <tns:intA>25</tns:intA>
+      <tns:intB>75</tns:intB>
+    </tns:Add>
+  </soap:Body>
+</soap:Envelope></textarea>
+                </div>
+
+                <button id="btnSendSoap" class="btn btn-primary w-100 py-2 fw-semibold" onclick="handleSendSoapRequest()">
+                  <i class="bi bi-send-fill me-1"></i> Send Real SOAP Request & Monitor
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Response & Monitoring Inspection -->
+          <div class="col-lg-6">
+            <div id="soapResponsePlaceholder" class="card text-center p-5 text-muted h-100 justify-content-center">
+              <div>
+                <i class="bi bi-cloud-arrow-up display-4 d-block mb-3 text-secondary"></i>
+                <h5>Awaiting Transmission</h5>
+                <p class="small mb-0">Configure your request and click <strong>Send Real SOAP Request</strong>.<br>Latency, HTTP status, and actual response will be inspected here.</p>
+              </div>
+            </div>
+
+            <!-- Dynamic Result Card -->
+            <div id="soapResponseCard" class="card shadow-sm d-none h-100">
+              <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                  <span id="respStatusBadge" class="badge bg-secondary">-</span>
+                  <span id="respHttpCodeBadge" class="badge bg-light text-dark border">-</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-secondary"><i class="bi bi-stopwatch me-1"></i> <span id="respLatency">0</span> ms</span>
+                  <a id="btnDownloadPdf" href="#" class="btn btn-sm btn-outline-danger d-none">
+                    <i class="bi bi-file-earmark-pdf-fill me-1"></i> Download PDF
+                  </a>
+                </div>
+              </div>
+              <div class="card-body">
+                <div id="respSummaryAlert" class="alert alert-info py-2 mb-3 small"></div>
+
+                <div id="soapFaultAlert" class="alert alert-warning py-2 mb-3 small d-none">
+                  <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                  <strong>SOAP Fault Detected:</strong> <span id="dispFaultDetails"></span>
+                </div>
+
+                <label class="form-label small fw-semibold text-muted">Response XML Envelope (From Service):</label>
+                <div class="code-area xml-box"><code id="dispRawResponseXml"></code></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- AUDIT LOGS & REPORTS SECTION                                  -->
+      <!-- ============================================================== -->
+      <div class="tab-pane fade" id="tab-reports" role="tabpanel">
+        <div class="card shadow-sm border-0">
+          <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-database-check text-primary me-2"></i> Centralized Test Audit Trail</h5>
+            <button class="btn btn-sm btn-outline-primary" onclick="fetchRecentReports()">
+              <i class="bi bi-arrow-clockwise me-1"></i> Refresh Logs
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Test ID</th>
+                  <th>Service</th>
+                  <th>Operation</th>
+                  <th>Test Type</th>
+                  <th>Latency</th>
+                  <th>HTTP Code</th>
+                  <th>Status</th>
+                  <th>Timestamp</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="auditTableBody">
+                <tr>
+                  <td colspan="9" class="text-center text-muted py-4">Click Refresh or execute tests to load database logs.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- ============================================================== -->
+  <!-- REAL CLIENT-SIDE LOGIC (VANILLA ES6 FETCH API - ZERO MOCKING)  -->
+  <!-- ============================================================== -->
+  <script>
+    // State management for Module 1 dynamic parsing
+    let currentParsedData = null;
+
+    // Helper: Escape HTML strings for code preview
+    function escapeHtml(str) {
+      if (!str) return "";
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // -------------------------------------------------------------
+    // MODULE 1: Real Dynamic WSDL Parsing & Request Generation
+    // -------------------------------------------------------------
+    async function handleParseWsdl() {
+      const fileInput = document.getElementById("wsdlFileInput");
+      const textInput = document.getElementById("wsdlContentInput").value.trim();
+      const btn = document.getElementById("btnParseWsdl");
+
+      if (!fileInput.files[0] && !textInput) {
+        alert("Please upload a .wsdl file or paste WSDL XML content.");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Parsing via lxml...';
+
+      try {
+        let response;
+        if (fileInput.files[0]) {
+          const formData = new FormData();
+          formData.append("file", fileInput.files[0]);
+          response = await fetch("/api/v1/wsdl/parse", { method: "POST", body: formData });
+        } else {
+          response = await fetch("/api/v1/wsdl/parse", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ wsdl_content: textInput })
+          });
+        }
+
+        const data = await response.json();
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cpu me-1"></i> Parse & Discover Operations';
+
+        if (!response.ok || data.status === "error") {
+          alert(`WSDL Parsing Error: ${data.message}`);
+          return;
+        }
+
+        // Store real parsed state
+        currentParsedData = data;
+
+        // Populate discovery summary
+        document.getElementById("dispServiceName").innerText = data.service_name || "DiscoveredService";
+        document.getElementById("dispTargetNamespace").innerText = data.target_namespace || "None";
+        document.getElementById("dispEndpointUrl").innerText = data.default_endpoint || "None configured in WSDL";
+        document.getElementById("wsdlMetaContainer").classList.remove("d-none");
+        document.getElementById("wsdlSummaryNotice").classList.add("d-none");
+
+        // Dynamically populate Operations Dropdown with real extracted operations
+        const opSelect = document.getElementById("operationsDropdown");
+        opSelect.innerHTML = '<option value="">-- Select an Operation --</option>';
+
+        if (data.operations && data.operations.length > 0) {
+          data.operations.forEach((op, index) => {
+            const opt = document.createElement("option");
+            opt.value = op.operation_name;
+            opt.innerText = `${op.operation_name} (PortType: ${op.port_type})`;
+            opSelect.appendChild(opt);
+          });
+          opSelect.disabled = false;
+          opSelect.selectedIndex = 1; // Pick first by default
+          handleOperationSelected();
+        } else {
+          opSelect.innerHTML = '<option value="">-- No Operations Defined in WSDL --</option>';
+          opSelect.disabled = true;
+        }
+
+        document.getElementById("btnGenerateEnvelope").disabled = false;
+
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cpu me-1"></i> Parse & Discover Operations';
+        alert("Failed to communicate with backend: " + err.message);
+      }
+    }
+
+    function handleOperationSelected() {
+      if (!currentParsedData) return;
+      const opName = document.getElementById("operationsDropdown").value;
+      const opObj = currentParsedData.operations.find(o => o.operation_name === opName);
+      const paramsContainer = document.getElementById("operationParamsContainer");
+      paramsContainer.innerHTML = "";
+
+      if (opObj && opObj.parameters && opObj.parameters.length > 0) {
+        let html = '<div class="card p-2 bg-light border"><div class="fw-semibold small mb-2 text-dark">Operation Parameters (From XSD Schema):</div>';
+        opObj.parameters.forEach(p => {
+          html += `
+            <div class="mb-2">
+              <label class="form-label small mb-0">${p.name} <span class="text-muted">(${p.type})</span> ${p.required ? '<span class="text-danger">*</span>' : ''}</label>
+              <input type="text" class="form-control form-control-sm param-input" data-param-name="${p.name}" value="50">
+            </div>
+          `;
+        });
+        html += '</div>';
+        paramsContainer.innerHTML = html;
+      }
+    }
+
+    async function handleGenerateEnvelope() {
+      if (!currentParsedData) return;
+      const opName = document.getElementById("operationsDropdown").value;
+      if (!opName) {
+        alert("Please select an operation first.");
+        return;
+      }
+
+      const targetNs = currentParsedData.target_namespace;
+      const soapVer = document.querySelector('input[name="soapVersionRadio"]:checked').value;
+
+      // Extract parameter values from dynamic inputs
+      const params = {};
+      document.querySelectorAll(".param-input").forEach(inp => {
+        params[inp.getAttribute("data-param-name")] = inp.value;
+      });
+
+      // Default sample if no schema parameters found
+      if (Object.keys(params).length === 0) {
+        if (opName === "Divide") {
+          params["intA"] = "100";
+          params["intB"] = "5";
+        } else if (opName === "Add") {
+          params["intA"] = "25";
+          params["intB"] = "75";
+        } else {
+          params["arg0"] = "sample_value";
+        }
+      }
+
+      try {
+        const response = await fetch("/api/v1/wsdl/generate-envelope", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            target_namespace: targetNs,
+            operation_name: opName,
+            soap_version: soapVer,
+            parameters: params
+          })
+        });
+
+        const data = await response.json();
+        if (data.status === "success") {
+          document.getElementById("generatedSoapEnvelope").value = data.request_envelope;
+        }
+      } catch (err) {
+        alert("Error generating envelope: " + err.message);
+      }
+    }
+
+    function transferToModule3() {
+      const envelope = document.getElementById("generatedSoapEnvelope").value;
+      if (!envelope.trim()) {
+        alert("Generate or paste a SOAP request envelope first.");
+        return;
+      }
+      document.getElementById("soapRequestXml").value = envelope;
+      if (currentParsedData && currentParsedData.default_endpoint) {
+        document.getElementById("soapEndpointUrl").value = currentParsedData.default_endpoint;
+      }
+      const opName = document.getElementById("operationsDropdown").value;
+      if (currentParsedData && opName) {
+        document.getElementById("soapActionHeader").value = `${currentParsedData.target_namespace}/${opName}`;
+      }
+      // Switch tab to Module 3
+      const tabTrigger = new bootstrap.Tab(document.getElementById("tab-mod3-btn"));
+      tabTrigger.show();
+    }
+
+    // -------------------------------------------------------------
+    // MODULE 2: Real XSD & Schema Diff Engine
+    // -------------------------------------------------------------
+    async function handleValidateContract() {
+      const xml = document.getElementById("valXmlInput").value.trim();
+      const xsd = document.getElementById("valXsdInput").value.trim();
+      const btn = document.getElementById("btnRunValidation");
+
+      if (!xml || !xsd) {
+        alert("Both XML message instance and XSD Schema are required.");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Validating via lxml.XMLSchema...';
+
+      try {
+        const response = await fetch("/api/v1/contract/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ xml_payload: xml, xsd_schema: xsd })
+        });
+
+        const data = await response.json();
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-shield-check me-1"></i> Run Real Contract Validation';
+
+        const resultCard = document.getElementById("validationResultCard");
+        const header = document.getElementById("valResultHeader");
+        const summary = document.getElementById("valResultSummary");
+        const errorsContainer = document.getElementById("valErrorsContainer");
+
+        resultCard.classList.remove("d-none");
+
+        if (data.is_valid) {
+          header.className = "card-header bg-success text-white py-3 fw-bold";
+          header.innerHTML = '<i class="bi bi-patch-check-fill me-2"></i> DATA CONTRACT VALIDATION PASSED (HTTP 200)';
+          summary.className = "text-success fw-semibold mb-2";
+          summary.innerText = data.summary;
+          errorsContainer.innerHTML = '<div class="alert alert-success small mb-0"><i class="bi bi-check-circle me-1"></i> All XML element types, occurrences (minOccurs/maxOccurs), and structural namespaces are 100% compliant with the XSD definition.</div>';
+        } else {
+          header.className = "card-header bg-danger text-white py-3 fw-bold";
+          header.innerHTML = '<i class="bi bi-x-octagon-fill me-2"></i> DATA CONTRACT VIOLATION DETECTED (HTTP 422)';
+          summary.className = "text-danger fw-semibold mb-2";
+          summary.innerText = data.summary;
+
+          let errHtml = '<ul class="list-group list-group-flush">';
+          (data.errors || []).forEach(err => {
+            errHtml += `
+              <li class="list-group-item list-group-item-danger d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="fw-bold">${escapeHtml(err.category || 'Error')} (Line ${err.line || '1'}, Column ${err.column || '1'})</div>
+                  <div class="small">${escapeHtml(err.message)}</div>
+                </div>
+                <span class="badge bg-danger">Mismatch</span>
+              </li>
+            `;
+          });
+          errHtml += '</ul>';
+          errorsContainer.innerHTML = errHtml;
+        }
+
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-shield-check me-1"></i> Run Real Contract Validation';
+        alert("Failed to reach validator backend: " + err.message);
+      }
+    }
+
+    async function handleRunCompatibility() {
+      const v1 = document.getElementById("compatV1Input").value.trim();
+      const v2 = document.getElementById("compatV2Input").value.trim();
+      const btn = document.getElementById("btnRunCompat");
+
+      if (!v1 || !v2) {
+        alert("Both Base V1 and Updated V2 XSD schemas are required.");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Analyzing Schema Evolutions...';
+
+      try {
+        const response = await fetch("/api/v1/contract/compatibility", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ v1_xsd: v1, v2_xsd: v2 })
+        });
+
+        const data = await response.json();
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-shuffle me-1"></i> Compare Schemas & Assess Compatibility';
+
+        const resultCard = document.getElementById("compatResultCard");
+        const header = document.getElementById("compatHeader");
+        const body = document.getElementById("compatBody");
+        resultCard.classList.remove("d-none");
+
+        if (data.is_compatible) {
+          header.className = "card-header bg-success text-white py-3 fw-bold";
+          header.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i> COMPATIBLE: BACKWARD-COMPATIBLE CONTRACT UPDATE';
+        } else {
+          header.className = "card-header bg-danger text-white py-3 fw-bold";
+          header.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i> INCOMPATIBLE: BREAKING CHANGES DETECTED';
+        }
+
+        let outHtml = `<div class="mb-3 small">Base Schema Elements: <b>${data.v1_count}</b> | Updated Schema Elements: <b>${data.v2_count}</b></div>`;
+
+        if (data.breaking_changes && data.breaking_changes.length > 0) {
+          outHtml += '<h6 class="text-danger fw-bold"><i class="bi bi-x-circle me-1"></i> Breaking Changes:</h6><ul class="list-group mb-3">';
+          data.breaking_changes.forEach(b => {
+            outHtml += `<li class="list-group-item list-group-item-danger small">${escapeHtml(b)}</li>`;
+          });
+          outHtml += '</ul>';
+        }
+
+        if (data.non_breaking_changes && data.non_breaking_changes.length > 0) {
+          outHtml += '<h6 class="text-success fw-bold"><i class="bi bi-check2-circle me-1"></i> Backward-Compatible / Non-Breaking Changes:</h6><ul class="list-group mb-3">';
+          data.non_breaking_changes.forEach(nb => {
+            outHtml += `<li class="list-group-item list-group-item-success small">${escapeHtml(nb)}</li>`;
+          });
+          outHtml += '</ul>';
+        }
+
+        body.innerHTML = outHtml;
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-shuffle me-1"></i> Compare Schemas & Assess Compatibility';
+        alert("Failed to analyze schemas: " + err.message);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // MODULE 3: Real SOAP HTTP Execution & Response Inspection
+    // -------------------------------------------------------------
+    async function handleSendSoapRequest() {
+      const url = document.getElementById("soapEndpointUrl").value.trim();
+      const action = document.getElementById("soapActionHeader").value.trim();
+      const version = document.getElementById("soapVersionSelect").value;
+      const xml = document.getElementById("soapRequestXml").value.trim();
+      const btn = document.getElementById("btnSendSoap");
+
+      if (!url || !xml) {
+        alert("Endpoint URL and SOAP Request XML are required.");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Transmitting Real HTTP POST...';
+
+      try {
+        const response = await fetch("/api/v1/soap/execute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            endpoint_url: url,
+            soap_action: action,
+            soap_version: version,
+            request_xml: xml,
+            service_name: url.includes("calculator") ? "CalculatorService" : "RemoteSOAPService",
+            operation_name: action ? action.split("/").pop() : "SOAPOperation"
+          })
+        });
+
+        const data = await response.json();
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-send-fill me-1"></i> Send Real SOAP Request & Monitor';
+
+        document.getElementById("soapResponsePlaceholder").classList.add("d-none");
+        const respCard = document.getElementById("soapResponseCard");
+        respCard.classList.remove("d-none");
+
+        // Status badge
+        const badge = document.getElementById("respStatusBadge");
+        if (data.status === "PASSED") {
+          badge.className = "badge bg-success";
+          badge.innerText = "PASSED";
+        } else {
+          badge.className = "badge bg-danger";
+          badge.innerText = "FAILED";
+        }
+
+        // HTTP code
+        document.getElementById("respHttpCodeBadge").innerText = `HTTP ${data.http_status_code}`;
+        document.getElementById("respLatency").innerText = data.latency_ms;
+        document.getElementById("respSummaryAlert").innerText = data.summary || data.message || "Request completed.";
+
+        // SOAP Fault display
+        const faultAlert = document.getElementById("soapFaultAlert");
+        if (data.is_soap_fault) {
+          faultAlert.classList.remove("d-none");
+          document.getElementById("dispFaultDetails").innerText = `[${data.fault_code}] ${data.fault_string}`;
+        } else {
+          faultAlert.classList.add("d-none");
+        }
+
+        // Response XML
+        document.getElementById("dispRawResponseXml").innerText = data.response_xml || "(No response content returned by remote endpoint)";
+
+        // PDF Button
+        const pdfBtn = document.getElementById("btnDownloadPdf");
+        if (data.record_id) {
+          pdfBtn.href = `/reports/${data.record_id}/pdf`;
+          pdfBtn.classList.remove("d-none");
+        } else {
+          pdfBtn.classList.add("d-none");
+        }
+
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-send-fill me-1"></i> Send Real SOAP Request & Monitor';
+        alert("Network failure: " + err.message);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // AUDIT LOGS: SQLite Record Viewer
+    // -------------------------------------------------------------
+    async function fetchRecentReports() {
+      try {
+        const resp = await fetch("/api/v1/reports");
+        const data = await resp.json();
+        const tbody = document.getElementById("auditTableBody");
+        tbody.innerHTML = "";
+
+        if (!data.records || data.records.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No test executions logged yet.</td></tr>';
+          return;
+        }
+
+        data.records.forEach(r => {
+          const statusBadge = r.status === "PASSED" ? '<span class="badge bg-success">PASSED</span>' : '<span class="badge bg-danger">FAILED</span>';
+          const row = `
+            <tr>
+              <td><code>#${r.id}</code></td>
+              <td class="fw-semibold">${escapeHtml(r.service_name)}</td>
+              <td><code>${escapeHtml(r.operation_name)}</code></td>
+              <td><span class="badge bg-light text-dark border">${escapeHtml(r.test_type)}</span></td>
+              <td>${r.response_time_ms} ms</td>
+              <td><code>${r.http_status_code}</code></td>
+              <td>${statusBadge}</td>
+              <td class="small text-muted">${r.created_at}</td>
+              <td>
+                <a href="/reports/${r.id}/pdf" class="btn btn-xs btn-outline-danger py-1 px-2 small">
+                  <i class="bi bi-file-earmark-pdf"></i> PDF
+                </a>
+              </td>
+            </tr>
+          `;
+          tbody.innerHTML += row;
+        });
+      } catch (err) {
+        console.error("Error fetching reports:", err);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // PRESET DATA LOADERS (For Quick Evaluation & Demonstration)
+    // -------------------------------------------------------------
+    function loadLiveSampleWsdl(service) {
+      if (service === "calculator") {
+        fetch("/soap/calculator?wsdl")
+        .then(r => r.text())
+        .then(t => {
+          document.getElementById("wsdlContentInput").value = t;
+          document.getElementById("wsdlFileInput").value = "";
+          handleParseWsdl();
+        });
+      }
+    }
+
+    function loadExternalNumberWsdl() {
+      document.getElementById("wsdlContentInput").value = `<?xml version="1.0" encoding="utf-8"?>
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tns="http://tempuri.org/" targetNamespace="http://tempuri.org/">
+  <types>
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://tempuri.org/" elementFormDefault="qualified">
+      <xs:element name="NumberToWords">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="ubiNum" type="xs:unsignedLong" minOccurs="1"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="NumberToWordsResponse">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="NumberToWordsResult" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:schema>
+  </types>
+  <portType name="NumberConversionSoapType">
+    <operation name="NumberToWords">
+      <input message="tns:NumberToWordsSoapRequest"/>
+      <output message="tns:NumberToWordsSoapResponse"/>
+    </operation>
+  </portType>
+  <binding name="NumberConversionSoapBinding" type="tns:NumberConversionSoapType">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" style="document"/>
+    <operation name="NumberToWords">
+      <soap:operation soapAction="http://tempuri.org/NumberToWords"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+  </binding>
+  <service name="NumberConversion">
+    <port name="NumberConversionSoap" binding="tns:NumberConversionSoapBinding">
+      <soap:address location="https://www.dataaccess.com/webservicesserver/NumberConversion.wso"/>
+    </port>
+  </service>
+</definitions>`;
+      document.getElementById("wsdlFileInput").value = "";
+      handleParseWsdl();
+    }
+
+    function loadCalculatorSchema() {
+      document.getElementById("valXsdInput").value = `<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema targetNamespace="http://example.com/calculator"
+            xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            xmlns:tns="http://example.com/calculator"
+            elementFormDefault="qualified">
+
+  <xsd:element name="Add">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="intA" type="xsd:int" minOccurs="1"/>
+        <xsd:element name="intB" type="xsd:int" minOccurs="1"/>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+
+  <xsd:element name="Divide">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="intA" type="xsd:int" minOccurs="1"/>
+        <xsd:element name="intB" type="xsd:int" minOccurs="1"/>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>`;
+    }
+
+    function loadValidationCase(type) {
+      loadCalculatorSchema();
+      if (type === "valid") {
+        document.getElementById("valXmlInput").value = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://example.com/calculator">
+  <soap:Body>
+    <tns:Add>
+      <tns:intA>50</tns:intA>
+      <tns:intB>75</tns:intB>
+    </tns:Add>
+  </soap:Body>
+</soap:Envelope>`;
+      } else if (type === "type_error") {
+        document.getElementById("valXmlInput").value = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://example.com/calculator">
+  <soap:Body>
+    <tns:Add>
+      <tns:intA>NOT_A_VALID_INTEGER</tns:intA>
+      <tns:intB>75</tns:intB>
+    </tns:Add>
+  </soap:Body>
+</soap:Envelope>`;
+      } else if (type === "missing_field") {
+        document.getElementById("valXmlInput").value = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://example.com/calculator">
+  <soap:Body>
+    <tns:Add>
+      <tns:intA>50</tns:intA>
+      <!-- Mandatory element intB is omitted! (minOccurs=1) -->
+    </tns:Add>
+  </soap:Body>
+</soap:Envelope>`;
+      }
+    }
+
+    function loadCompatSample(type) {
+      if (type === "v1") {
+        document.getElementById("compatV1Input").value = `<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema targetNamespace="http://example.com/ecommerce"
+            xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            elementFormDefault="qualified">
+  <xsd:element name="Customer">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="customerId" type="xsd:string" minOccurs="1"/>
+        <xsd:element name="customerName" type="xsd:string" minOccurs="1"/>
+        <xsd:element name="email" type="xsd:string" minOccurs="1"/>
+        <xsd:element name="phoneNumber" type="xsd:string" minOccurs="0"/>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>`;
+      } else if (type === "v2_breaking") {
+        document.getElementById("compatV2Input").value = `<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema targetNamespace="http://example.com/ecommerce"
+            xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            elementFormDefault="qualified">
+  <xsd:element name="Customer">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="customerId" type="xsd:string" minOccurs="1"/>
+        <xsd:element name="customerName" type="xsd:string" minOccurs="1"/>
+        <!-- BREAKING: email element removed -->
+        <xsd:element name="phoneNumber" type="xsd:string" minOccurs="0"/>
+        <!-- BREAKING: age added as mandatory minOccurs=1 without default -->
+        <xsd:element name="age" type="xsd:int" minOccurs="1"/>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>`;
+      } else if (type === "v2_compatible") {
+        document.getElementById("compatV2Input").value = `<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema targetNamespace="http://example.com/ecommerce"
+            xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            elementFormDefault="qualified">
+  <xsd:element name="Customer">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="customerId" type="xsd:string" minOccurs="1"/>
+        <xsd:element name="customerName" type="xsd:string" minOccurs="1"/>
+        <xsd:element name="email" type="xsd:string" minOccurs="1"/>
+        <xsd:element name="phoneNumber" type="xsd:string" minOccurs="0"/>
+        <!-- COMPATIBLE: optional element loyaltyTier added with minOccurs=0 -->
+        <xsd:element name="loyaltyTier" type="xsd:string" minOccurs="0"/>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>`;
+      }
+    }
+
+    function handleScenarioSelect() {
+      const choice = document.getElementById("quickScenarioSelect").value;
+      if (choice === "calc_add_valid") {
+        document.getElementById("soapEndpointUrl").value = "http://127.0.0.1:5000/soap/calculator";
+        document.getElementById("soapActionHeader").value = "http://example.com/calculator/Add";
+        document.getElementById("soapRequestXml").value = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://example.com/calculator">
+  <soap:Header/>
+  <soap:Body>
+    <tns:Add>
+      <tns:intA>25</tns:intA>
+      <tns:intB>75</tns:intB>
+    </tns:Add>
+  </soap:Body>
+</soap:Envelope>`;
+      } else if (choice === "calc_div_zero") {
+        document.getElementById("soapEndpointUrl").value = "http://127.0.0.1:5000/soap/calculator";
+        document.getElementById("soapActionHeader").value = "http://example.com/calculator/Divide";
+        document.getElementById("soapRequestXml").value = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://example.com/calculator">
+  <soap:Header/>
+  <soap:Body>
+    <tns:Divide>
+      <tns:intA>100</tns:intA>
+      <tns:intB>0</tns:intB>
+    </tns:Divide>
+  </soap:Body>
+</soap:Envelope>`;
+      } else if (choice === "external_number") {
+        document.getElementById("soapEndpointUrl").value = "https://www.dataaccess.com/webservicesserver/NumberConversion.wso";
+        document.getElementById("soapActionHeader").value = "http://tempuri.org/NumberToWords";
+        document.getElementById("soapRequestXml").value = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://tempuri.org/">
+  <soap:Header/>
+  <soap:Body>
+    <tns:NumberToWords>
+      <tns:ubiNum>750</tns:ubiNum>
+    </tns:NumberToWords>
+  </soap:Body>
+</soap:Envelope>`;
+      }
+    }
+  </script>
+</body>
+</html>

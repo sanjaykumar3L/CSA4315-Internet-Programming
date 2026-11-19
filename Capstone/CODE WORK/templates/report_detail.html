@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Test Report #{{ record.id }} | Web Service Interoperability{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <a href="{{ url_for('reports') }}" class="text-decoration-none small text-muted">
+      <i class="bi bi-arrow-left me-1"></i> Back to Reports
+    </a>
+    <h3 class="fw-bold text-dark mb-0 mt-1">
+      Test Execution Audit Report <span class="text-muted">#{{ record.id }}</span>
+    </h3>
+  </div>
+  <div>
+    <a href="{{ url_for('download_pdf_report', record_id=record.id) }}" class="btn btn-danger">
+      <i class="bi bi-file-earmark-pdf-fill me-1"></i> Download Official PDF Report
+    </a>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-md-8">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-info-circle text-primary me-2"></i> Execution Summary</h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6">
+            <div class="text-muted small">Service Name:</div>
+            <div class="fw-bold">{{ record.service_name }}</div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small">Operation Tested:</div>
+            <div class="fw-bold"><code>{{ record.operation_name }}</code></div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small">Endpoint URL:</div>
+            <div class="small text-truncate"><code>{{ record.endpoint_url }}</code></div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small">Test Execution Type:</div>
+            <span class="badge bg-light text-dark border">{{ record.test_type }}</span>
+          </div>
+        </div>
+
+        <div class="alert {% if record.status == 'PASSED' %}alert-success{% else %}alert-danger{% endif %} mb-0">
+          <strong>Outcome Summary:</strong> {{ record.summary }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Diagnostics if any -->
+    {% if record.validation_errors_list %}
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-danger-subtle text-danger py-3">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-bug-fill me-2"></i> Validation Errors & Diagnostics</h6>
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for err in record.validation_errors_list %}
+        <li class="list-group-item">
+          {% if err is mapping %}
+            <div class="fw-bold text-danger">{{ err.category | default('Error') }} {% if err.line %}(Line {{ err.line }}){% endif %}</div>
+            <div class="small text-muted">{{ err.message }}</div>
+          {% else %}
+            <div class="small text-danger">{{ err }}</div>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- Request and Response Payloads -->
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-arrow-up-right-square me-2"></i> Request Payload</h6>
+      </div>
+      <div class="card-body p-0">
+        <pre class="xml-view mb-0 rounded-0 rounded-bottom"><code>{{ record.request_xml | default('(No Request XML Recorded)') }}</code></pre>
+      </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-arrow-down-left-square me-2"></i> Response Payload</h6>
+      </div>
+      <div class="card-body p-0">
+        <pre class="xml-view mb-0 rounded-0 rounded-bottom"><code>{{ record.response_xml | default('(No Response XML Recorded)') }}</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <!-- Quick Status Box -->
+    <div class="card shadow-sm border-0 mb-4 text-center p-4">
+      <div class="text-muted small text-uppercase fw-semibold mb-2">Overall Test Status</div>
+      {% if record.status == 'PASSED' %}
+        <div class="display-6 text-success fw-bold mb-2">PASSED</div>
+        <i class="bi bi-check-circle-fill text-success fs-1 mb-3"></i>
+      {% else %}
+        <div class="display-6 text-danger fw-bold mb-2">FAILED</div>
+        <i class="bi bi-x-circle-fill text-danger fs-1 mb-3"></i>
+      {% endif %}
+      <hr>
+      <div class="d-flex justify-content-between text-muted small mb-2">
+        <span>Latency:</span>
+        <strong class="text-dark">{{ record.response_time_ms }} ms</strong>
+      </div>
+      <div class="d-flex justify-content-between text-muted small mb-2">
+        <span>HTTP Status:</span>
+        <strong class="text-dark">{{ record.http_status_code }}</strong>
+      </div>
+      <div class="d-flex justify-content-between text-muted small">
+        <span>Logged At:</span>
+        <strong class="text-dark">{{ record.created_at }}</strong>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:tns="http://example.com/calculator">
+  <soap:Header/>
+  <soap:Body>
+    <tns:Add>
+      <tns:intA>45</tns:intA>
+      <!-- Missing mandatory element intB (minOccurs=1) -->
+    </tns:Add>
+  </soap:Body>
+</soap:Envelope>

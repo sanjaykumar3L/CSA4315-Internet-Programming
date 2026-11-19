@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Validation Reports & Logs | Web Service Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">
+      <i class="bi bi-file-earmark-bar-graph text-primary me-2"></i> Test Results & Validation Reports
+    </h3>
+    <p class="text-muted mb-0">Centralized log of all contract validation and SOAP communication testing runs.</p>
+  </div>
+  <div class="btn-group" role="group">
+    <a href="{{ url_for('reports') }}" class="btn btn-sm {% if not active_filter %}btn-dark{% else %}btn-outline-dark{% endif %}">All</a>
+    <a href="{{ url_for('reports', status='passed') }}" class="btn btn-sm {% if active_filter == 'passed' %}btn-success{% else %}btn-outline-success{% endif %}">Passed</a>
+    <a href="{{ url_for('reports', status='failed') }}" class="btn btn-sm {% if active_filter == 'failed' %}btn-danger{% else %}btn-outline-danger{% endif %}">Failed</a>
+  </div>
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Test ID</th>
+          <th>Service Name</th>
+          <th>Operation</th>
+          <th>Test Type</th>
+          <th>Status</th>
+          <th>HTTP Code</th>
+          <th>Latency</th>
+          <th>Timestamp</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if records %}
+          {% for r in records %}
+          <tr>
+            <td><code>#{{ r.id }}</code></td>
+            <td class="fw-semibold">{{ r.service_name }}</td>
+            <td><code>{{ r.operation_name }}</code></td>
+            <td><span class="badge bg-light text-dark border">{{ r.test_type }}</span></td>
+            <td>
+              {% if r.status == 'PASSED' %}
+                <span class="badge bg-success">PASSED</span>
+              {% else %}
+                <span class="badge bg-danger">FAILED</span>
+              {% endif %}
+            </td>
+            <td><code>{{ r.http_status_code }}</code></td>
+            <td>{{ r.response_time_ms }} ms</td>
+            <td class="small text-muted">{{ r.created_at }}</td>
+            <td>
+              <div class="d-flex gap-1">
+                <a href="{{ url_for('report_detail', record_id=r.id) }}" class="btn btn-xs btn-outline-primary py-1 px-2 small">
+                  <i class="bi bi-eye"></i> Details
+                </a>
+                <a href="{{ url_for('download_pdf_report', record_id=r.id) }}" class="btn btn-xs btn-outline-danger py-1 px-2 small" title="Download PDF">
+                  <i class="bi bi-file-earmark-pdf"></i> PDF
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-5">
+              <i class="bi bi-clipboard-x fs-2 d-block mb-2"></i>
+              No test records found matching the current filter.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

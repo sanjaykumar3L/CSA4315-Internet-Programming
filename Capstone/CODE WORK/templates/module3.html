@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Module 3: Communication Monitoring & Validation Report Generation{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">
+      <i class="bi bi-broadcast text-info me-2"></i> Module 3 — Communication Monitoring and Validation Report Generation
+    </h3>
+    <p class="text-muted mb-0">
+      Execute live SOAP requests against web service endpoints, monitor response times, detect SOAP Faults, and generate exportable reports.
+    </p>
+  </div>
+  <div>
+    <span class="badge bg-info text-dark px-3 py-2">Module 3 of 3</span>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Left Column: Request Execution Config -->
+  <div class="col-lg-6">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-send text-primary me-2"></i> SOAP Request Dispatcher</h5>
+        <div>
+          <select id="soap-scenario-select" class="form-select form-select-sm">
+            <option value="">-- Quick Load Scenarios --</option>
+            <option value="calc_add_valid">1. Calculator Add: Valid (45 + 55 = 100)</option>
+            <option value="calc_div_zero">2. Calculator Divide: Zero Division (SOAP Fault)</option>
+            <option value="order_create_valid">3. Order Service: Create Order (CONFIRMED)</option>
+          </select>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Service Endpoint URL:</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+            <input type="text" id="soap-endpoint-url" class="form-control" value="http://127.0.0.1:5000/soap/calculator" placeholder="http://hostname:port/soap/service">
+          </div>
+          <div class="form-text small">Built-in local mocks are ready at <code>http://127.0.0.1:5000/soap/calculator</code> and <code>/soap/orders</code>.</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">SOAPAction Header (Optional):</label>
+          <input type="text" id="soap-action-header" class="form-control form-control-sm" value="http://example.com/calculator/Add" placeholder="http://example.com/service/OperationName">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">SOAP Request XML Envelope:</label>
+          <textarea id="soap-request-xml" class="form-control code-editor" rows="12"><?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://example.com/calculator">
+  <soap:Header/>
+  <soap:Body>
+    <tns:Add>
+      <tns:intA>125</tns:intA>
+      <tns:intB>375</tns:intB>
+    </tns:Add>
+  </soap:Body>
+</soap:Envelope></textarea>
+        </div>
+
+        <button id="btn-send-soap" class="btn btn-primary w-100 py-2 fw-semibold">
+          <i class="bi bi-send-fill me-1"></i> Send SOAP Request & Monitor
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Response & Live Monitoring -->
+  <div class="col-lg-6">
+    <div id="soap-response-container" class="mb-4 d-none">
+      <!-- Injected by JavaScript on execution -->
+    </div>
+
+    <!-- Communication Metrics and Explanation Box -->
+    <div class="card shadow-sm border-0 mb-4 bg-white">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-info-circle-fill text-primary me-2"></i> Communication Inspection Criteria</h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-2 text-center mb-3">
+          <div class="col-4">
+            <div class="border rounded p-2 bg-light">
+              <i class="bi bi-clock-history text-primary fs-5"></i>
+              <div class="fw-semibold small mt-1">Roundtrip Latency</div>
+              <div class="text-muted small">Real-time ms timer</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="border rounded p-2 bg-light">
+              <i class="bi bi-code-square text-success fs-5"></i>
+              <div class="fw-semibold small mt-1">HTTP Codes</div>
+              <div class="text-muted small">200 OK / 400 / 500</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="border rounded p-2 bg-light">
+              <i class="bi bi-exclamation-octagon text-danger fs-5"></i>
+              <div class="fw-semibold small mt-1">SOAP Faults</div>
+              <div class="text-muted small">Code & Reason parsed</div>
+            </div>
+          </div>
+        </div>
+        <p class="small text-muted mb-0">
+          Every communication attempt is automatically recorded in the central audit database. Click on <strong>Download PDF Report</strong> to obtain an archival copy of the test execution and response validation.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

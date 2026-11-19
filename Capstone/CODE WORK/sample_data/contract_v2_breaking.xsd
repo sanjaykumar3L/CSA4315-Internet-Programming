@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema targetNamespace="http://example.com/ecommerce"
+            xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            elementFormDefault="qualified">
+  <xsd:element name="Customer">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="customerId" type="xsd:string" minOccurs="1"/>
+        <xsd:element name="customerName" type="xsd:string" minOccurs="1"/>
+        <!-- email removed! (Breaking change) -->
+        <xsd:element name="phoneNumber" type="xsd:string" minOccurs="0"/>
+        <!-- age added as mandatory minOccurs=1 without default! (Breaking change) -->
+        <xsd:element name="age" type="xsd:int" minOccurs="1"/>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>

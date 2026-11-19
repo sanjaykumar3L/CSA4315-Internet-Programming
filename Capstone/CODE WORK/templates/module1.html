@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Module 1: Web Service Configuration and Integration{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">
+      <i class="bi bi-gear-wide-connected text-primary me-2"></i> Module 1 — Web Service Configuration and Integration
+    </h3>
+    <p class="text-muted mb-0">
+      Import WSDL service contracts, discover available operations & port endpoints, and generate standardized SOAP XML request envelopes.
+    </p>
+  </div>
+  <div>
+    <span class="badge bg-primary px-3 py-2">Module 1 of 3</span>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Left Column: WSDL Import & Parser -->
+  <div class="col-lg-7">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-file-code-fill text-primary me-2"></i> WSDL Service Definition</h5>
+        <div class="d-flex gap-2">
+          <select id="wsdl-preset-select" class="form-select form-select-sm">
+            <option value="">-- Load Sample WSDL --</option>
+            <option value="calculator">Calculator Service (Local Mock)</option>
+            <option value="orders">Order Service (Local Mock)</option>
+          </select>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label small text-muted">Paste WSDL XML below or select a sample preset:</label>
+          <textarea id="wsdl-content" class="form-control code-editor" rows="14" placeholder="Paste WSDL definition XML here..."></textarea>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+          <button id="btn-parse-wsdl" class="btn btn-primary">
+            <i class="bi bi-cpu me-1"></i> Parse & Discover Operations
+          </button>
+          <span class="small text-muted">Supports WSDL 1.1 / 2.0 with embedded XSD schemas</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Parsed Service & Operations Output Card -->
+    <div id="wsdl-discovery-results" class="card shadow-sm border-0 p-4 mb-4 d-none">
+      <!-- Injected by JavaScript -->
+    </div>
+  </div>
+
+  <!-- Right Column: SOAP Request Template Generator -->
+  <div class="col-lg-5">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-file-earmark-text text-success me-2"></i> XML Request Preparation</h5>
+        <div class="small text-muted">Generate conformant SOAP envelope from operation contract</div>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">SOAP Version:</label>
+          <div class="d-flex gap-3">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="soapVersion" id="soap11" value="1.1" checked>
+              <label class="form-check-label small" for="soap11">SOAP 1.1 (Standard)</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="soapVersion" id="soap12" value="1.2">
+              <label class="form-check-label small" for="soap12">SOAP 1.2</label>
+            </div>
+          </div>
+        </div>
+
+        <button id="btn-generate-template" class="btn btn-outline-success btn-sm w-100 mb-3">
+          <i class="bi bi-magic me-1"></i> Auto-Generate SOAP Request Envelope
+        </button>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Generated SOAP Request Envelope:</label>
+          <textarea id="generated-soap-envelope" class="form-control code-editor" rows="12" placeholder="SOAP Request XML will be generated here..."></textarea>
+        </div>
+
+        <div class="d-grid gap-2">
+          <a href="{{ url_for('module2') }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-right-circle me-1"></i> Proceed to Module 2 (Contract Validation)
+          </a>
+          <a href="{{ url_for('module3') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-send-fill me-1"></i> Proceed to Module 3 (Send SOAP Request)
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Previously Configured Services in DB -->
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-database me-2"></i> Configured Services Repository</h6>
+      </div>
+      <ul class="list-group list-group-flush">
+        {% if services %}
+          {% for s in services %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ s.service_name }}</strong>
+              <div class="small text-muted text-truncate" style="max-width: 250px;">{{ s.endpoint_url }}</div>
+            </div>
+            <span class="badge bg-light text-dark border">Saved</span>
+          </li>
+          {% endfor %}
+        {% else %}
+          <li class="list-group-item text-center text-muted small py-3">
+            No custom services configured yet.
+          </li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Module 2: Data Contract Validation and Compatibility Testing{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold text-dark mb-1">
+      <i class="bi bi-file-earmark-check text-success me-2"></i> Module 2 — Data Contract Validation and Compatibility Testing
+    </h3>
+    <p class="text-muted mb-0">
+      Verify XML messages against XML Schema (XSD) contracts, inspect data types & required fields, detect malformed XML, and assess schema version compatibility.
+    </p>
+  </div>
+  <div>
+    <span class="badge bg-success px-3 py-2">Module 2 of 3</span>
+  </div>
+</div>
+
+<!-- Tabs for Validation vs Schema Compatibility -->
+<ul class="nav nav-pills mb-4" id="module2Tabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="tab-validation-btn" data-bs-toggle="pill" data-bs-target="#tab-validation" type="button" role="tab">
+      <i class="bi bi-shield-check me-1"></i> Part A: XML Schema & Data Type Validation
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="tab-compatibility-btn" data-bs-toggle="pill" data-bs-target="#tab-compatibility" type="button" role="tab">
+      <i class="bi bi-shuffle me-1"></i> Part B: Schema Compatibility Assessment (V1 vs V2)
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content" id="module2TabsContent">
+  <!-- TAB 1: XML vs XSD Validation -->
+  <div class="tab-pane fade show active" id="tab-validation" role="tabpanel">
+    <div class="row g-4">
+      <div class="col-lg-6">
+        <div class="card shadow-sm border-0 mb-4">
+          <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-filetype-xml text-primary me-2"></i> XML Message Instance</h5>
+            <div>
+              <select id="validation-sample-select" class="form-select form-select-sm">
+                <option value="">-- Load Sample Test Case --</option>
+                <option value="valid">1. Valid Request (Conforming)</option>
+                <option value="invalid_type">2. Invalid Data Type Error (intA = text)</option>
+                <option value="missing_field">3. Missing Required Field Error (Missing intB)</option>
+              </select>
+            </div>
+          </div>
+          <div class="card-body">
+            <label class="form-label small text-muted">XML Document or SOAP Body:</label>
+            <textarea id="contract-xml-input" class="form-control code-editor" rows="12" placeholder="Paste XML document here..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card shadow-sm border-0 mb-4">
+          <div class="card-header bg-white py-3">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-file-earmark-binary text-secondary me-2"></i> XML Schema Contract (XSD)</h5>
+            <div class="small text-muted">Rules, sequences, element types, and occurrence constraints</div>
+          </div>
+          <div class="card-body">
+            <label class="form-label small text-muted">XSD Schema Definition:</label>
+            <textarea id="contract-xsd-input" class="form-control code-editor" rows="12" placeholder="Paste XSD contract definition here..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Bar -->
+    <div class="card shadow-sm border-0 p-3 mb-4 bg-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="fw-semibold text-dark"><i class="bi bi-lightning-charge-fill text-warning me-1"></i> Automated Pipeline:</span>
+          <span class="small text-muted ms-2">XML Parsing &rarr; Schema Validation &rarr; Data Type Verification &rarr; Error Diagnostics</span>
+        </div>
+        <button id="btn-validate-contract" class="btn btn-success px-4">
+          <i class="bi bi-shield-check me-1"></i> Run Contract Validation
+        </button>
+      </div>
+    </div>
+
+    <!-- Validation Results Display -->
+    <div id="validation-results-card" class="mb-4 d-none">
+      <!-- Injected by JavaScript -->
+    </div>
+  </div>
+
+  <!-- TAB 2: Schema Compatibility Assessment -->
+  <div class="tab-pane fade" id="tab-compatibility" role="tabpanel">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-diagram-2 text-primary me-2"></i> Contract Version Diffing & Compatibility Assessment</h5>
+        <div class="small text-muted">Detect breaking changes between consumer contract (V1) and provider update (V2)</div>
+      </div>
+      <div class="card-body">
+        <div class="row g-4 mb-3">
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label fw-semibold small mb-0">Base Contract (Schema V1 - Consumer):</label>
+              <button class="btn btn-xs btn-outline-secondary py-0" onclick="loadSampleCompat('v1')">Load Sample V1</button>
+            </div>
+            <textarea id="compat-v1-xsd" class="form-control code-editor" rows="11" placeholder="Paste Base Schema V1 XSD here..."></textarea>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label fw-semibold small mb-0">Updated Contract (Schema V2 - Provider):</label>
+              <div>
+                <button class="btn btn-xs btn-outline-danger py-0 me-1" onclick="loadSampleCompat('v2_breaking')">Load Breaking V2</button>
+                <button class="btn btn-xs btn-outline-success py-0" onclick="loadSampleCompat('v2_compatible')">Load Compatible V2</button>
+              </div>
+            </div>
+            <textarea id="compat-v2-xsd" class="form-control code-editor" rows="11" placeholder="Paste Updated Schema V2 XSD here..."></textarea>
+          </div>
+        </div>
+
+        <div class="text-end">
+          <button id="btn-assess-compatibility" class="btn btn-primary">
+            <i class="bi bi-shuffle me-1"></i> Compare Schemas & Assess Compatibility
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compatibility Results Container -->
+    <div id="compatibility-results-card" class="mb-4 d-none">
+      <!-- Injected by JavaScript -->
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function loadSampleCompat(type) {
+  let fileKey = "contract_v1";
+  if (type === "v2_breaking") fileKey = "contract_v2_breaking";
+  if (type === "v2_compatible") fileKey = "contract_v2_compatible";
+
+  fetch(`/api/sample-data/${fileKey}`)
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      if (type === "v1") {
+        document.getElementById("compat-v1-xsd").value = data.content;
+      } else {
+        document.getElementById("compat-v2-xsd").value = data.content;
+      }
+    }
+  });
+}
+</script>
+{% endblock %}
