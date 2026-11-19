@@ -173,6 +173,16 @@
       <!-- MODULE 1: Web Service Configuration and Integration           -->
       <!-- ============================================================== -->
       <div class="tab-pane fade show active" id="tab-mod1" role="tabpanel">
+        <section class="card mb-4" aria-labelledby="savedServicesTitle">
+          <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+              <h5 id="savedServicesTitle" class="h6 mb-1 fw-bold"><i class="bi bi-database-check text-success me-2" aria-hidden="true"></i>Saved service configurations</h5>
+              <div class="small text-muted">WSDL configurations are saved for future sessions; original service endpoints remain unchanged.</div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshSavedServices()"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i> Refresh services</button>
+          </div>
+          <div id="savedServicesList" class="card-body small text-muted" aria-live="polite">Loading saved services…</div>
+        </section>
         <div class="row g-4">
           <!-- WSDL Input & Parser -->
           <div class="col-lg-7">
@@ -556,6 +566,37 @@
     // -------------------------------------------------------------
     // MODULE 1: Real Dynamic WSDL Parsing & Request Generation
     // -------------------------------------------------------------
+    async function refreshSavedServices() {
+      const target = document.getElementById("savedServicesList");
+      if (!target) return;
+      try {
+        const response = await fetch("/api/v1/services", {headers: {"Accept": "application/json"}});
+        const result = await response.json();
+        if (!response.ok || !Array.isArray(result.services)) throw new Error("Service catalog unavailable");
+        target.replaceChildren();
+        if (!result.services.length) {
+          target.textContent = "No services saved yet. Load the Calculator WSDL and click Parse to add the first service.";
+          return;
+        }
+        const table = document.createElement("div");
+        table.className = "workbench-service-list";
+        for (const service of result.services.slice(0, 6)) {
+          const entry = document.createElement("div");
+          entry.className = "workbench-service-entry";
+          const title = document.createElement("strong");
+          title.textContent = service.service_name || "Unnamed service";
+          const detail = document.createElement("span");
+          detail.textContent = service.endpoint_url || service.target_namespace || "No endpoint advertised";
+          detail.title = detail.textContent;
+          entry.append(title, detail);
+          table.append(entry);
+        }
+        target.append(table);
+      } catch (error) {
+        target.textContent = "Saved services could not be loaded. Verify the backend and private storage.";
+      }
+    }
+
     async function handleParseWsdl() {
       const fileInput = document.getElementById("wsdlFileInput");
       const textInput = document.getElementById("wsdlContentInput").value.trim();
@@ -594,6 +635,7 @@
 
         // Store real parsed state
         currentParsedData = data;
+        refreshSavedServices();
 
         // Populate discovery summary
         document.getElementById("dispServiceName").innerText = data.service_name || "DiscoveredService";
@@ -1274,6 +1316,7 @@
       document.getElementById("tab-" + id + "-btn")?.addEventListener("shown.bs.tab", () => syncWorkbenchTab(id));
     }
     loadWorkbenchOverview();
+    refreshSavedServices();
     document.addEventListener("keydown", (event) => { if (event.key === "Escape") toggleWorkbenchMenu(false); });
   });
 </script>
