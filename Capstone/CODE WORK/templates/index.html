@@ -90,6 +90,16 @@
   </aside>
 
   <!-- Top Header -->
+  {% if is_serverless_preview %}
+  <div role="status" class="workbench-storage-notice {{ 'is-durable' if is_persistent_history else 'is-temporary' }}">
+    <i class="bi {{ 'bi-database-check' if is_persistent_history else 'bi-exclamation-triangle' }} me-2" aria-hidden="true"></i>
+    {% if is_persistent_history %}
+      Online workspace: audit records are saved in private persistent storage. You can export a PDF from any saved record.
+    {% else %}
+      Online preview: audit history is temporary and can reset between requests. Persistent storage is not configured.
+    {% endif %}
+  </div>
+  {% endif %}
   <header class="header-bar shadow-sm">
     <div class="container-fluid px-4">
       <div class="d-flex flex-wrap justify-content-between align-items-center">
@@ -104,7 +114,7 @@
           <span id="backendStatusBadge" class="badge bg-success px-3 py-2">
             <i class="bi bi-link-45deg me-1"></i> Checking backend status…
           </span>
-          <div class="small opacity-75 mt-1">Live Endpoint: <code>http://127.0.0.1:5000/soap/calculator</code></div>
+          <div class="small opacity-75 mt-1">Live Endpoint: <code>{{ request.host_url.rstrip('/') }}/soap/calculator</code></div>
         </div>
       </div>
     </div>
@@ -163,6 +173,16 @@
       <!-- MODULE 1: Web Service Configuration and Integration           -->
       <!-- ============================================================== -->
       <div class="tab-pane fade show active" id="tab-mod1" role="tabpanel">
+        <section class="card mb-4" aria-labelledby="savedServicesTitle">
+          <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+              <h5 id="savedServicesTitle" class="h6 mb-1 fw-bold"><i class="bi bi-database-check text-success me-2" aria-hidden="true"></i>Saved service configurations</h5>
+              <div class="small text-muted">WSDL configurations are saved for future sessions; original service endpoints remain unchanged.</div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshSavedServices()"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i> Refresh services</button>
+          </div>
+          <div id="savedServicesList" class="card-body small text-muted" aria-live="polite">Loading saved services…</div>
+        </section>
         <div class="row g-4">
           <!-- WSDL Input & Parser -->
           <div class="col-lg-7">
@@ -408,7 +428,7 @@
                   <label class="form-label small fw-semibold">Service Endpoint URL:</label>
                   <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
-                    <input type="text" id="soapEndpointUrl" class="form-control" value="http://127.0.0.1:5000/soap/calculator">
+                    <input type="text" id="soapEndpointUrl" class="form-control" value="{{ request.host_url.rstrip('/') }}/soap/calculator">
                   </div>
                 </div>
 
@@ -537,14 +557,46 @@
     let currentParsedData = null;
 
     // Helper: Escape HTML strings for code preview
-    function escapeHtml(str) {
-      if (!str) return "";
-      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     }
 
     // -------------------------------------------------------------
     // MODULE 1: Real Dynamic WSDL Parsing & Request Generation
     // -------------------------------------------------------------
+    async function refreshSavedServices() {
+      const target = document.getElementById("savedServicesList");
+      if (!target) return;
+      try {
+        const response = await fetch("/api/v1/services", {headers: {"Accept": "application/json"}});
+        const result = await response.json();
+        if (!response.ok || !Array.isArray(result.services)) throw new Error("Service catalog unavailable");
+        target.replaceChildren();
+        if (!result.services.length) {
+          target.textContent = "No services saved yet. Load the Calculator WSDL and click Parse to add the first service.";
+          return;
+        }
+        const table = document.createElement("div");
+        table.className = "workbench-service-list";
+        for (const service of result.services.slice(0, 6)) {
+          const entry = document.createElement("div");
+          entry.className = "workbench-service-entry";
+          const title = document.createElement("strong");
+          title.textContent = service.service_name || "Unnamed service";
+          const detail = document.createElement("span");
+          detail.textContent = service.endpoint_url || service.target_namespace || "No endpoint advertised";
+          detail.title = detail.textContent;
+          entry.append(title, detail);
+          table.append(entry);
+        }
+        target.append(table);
+      } catch (error) {
+        target.textContent = "Saved services could not be loaded. Verify the backend and private storage.";
+      }
+    }
+
     async function handleParseWsdl() {
       const fileInput = document.getElementById("wsdlFileInput");
       const textInput = document.getElementById("wsdlContentInput").value.trim();
@@ -583,6 +635,7 @@
 
         // Store real parsed state
         currentParsedData = data;
+        refreshSavedServices();
 
         // Populate discovery summary
         document.getElementById("dispServiceName").innerText = data.service_name || "DiscoveredService";
@@ -631,8 +684,8 @@
         opObj.parameters.forEach(p => {
           html += `
             <div class="mb-2">
-              <label class="form-label small mb-0">${p.name} <span class="text-muted">(${p.type})</span> ${p.required ? '<span class="text-danger">*</span>' : ''}</label>
-              <input type="text" class="form-control form-control-sm param-input" data-param-name="${p.name}" value="50">
+              <label class="form-label small mb-0">${escapeHtml(p.name)} <span class="text-muted">(${escapeHtml(p.type)})</span> ${p.required ? '<span class="text-danger">*</span>' : ''}</label>
+              <input type="text" class="form-control form-control-sm param-input" data-param-name="${escapeHtml(p.name)}" value="50">
             </div>
           `;
         });
@@ -933,6 +986,7 @@
       try {
         const resp = await fetch("/api/v1/reports");
         const data = await resp.json();
+        if (!resp.ok || !Array.isArray(data.records)) throw new Error(data.message || "Audit history unavailable");
         const tbody = document.getElementById("auditTableBody");
         tbody.innerHTML = "";
 
@@ -949,12 +1003,12 @@
               <td class="fw-semibold">${escapeHtml(r.service_name)}</td>
               <td><code>${escapeHtml(r.operation_name)}</code></td>
               <td><span class="badge bg-light text-dark border">${escapeHtml(r.test_type)}</span></td>
-              <td>${r.response_time_ms} ms</td>
-              <td><code>${r.http_status_code}</code></td>
+              <td>${escapeHtml(r.response_time_ms)} ms</td>
+              <td><code>${escapeHtml(r.http_status_code)}</code></td>
               <td>${statusBadge}</td>
-              <td class="small text-muted">${r.created_at}</td>
+              <td class="small text-muted">${escapeHtml(r.created_at)}</td>
               <td>
-                <a href="/reports/${r.id}/pdf" class="btn btn-xs btn-outline-danger py-1 px-2 small">
+                <a href="/reports/${encodeURIComponent(r.id)}/pdf" class="btn btn-xs btn-outline-danger py-1 px-2 small">
                   <i class="bi bi-file-earmark-pdf"></i> PDF
                 </a>
               </td>
@@ -964,6 +1018,8 @@
         });
       } catch (err) {
         console.error("Error fetching reports:", err);
+        document.getElementById("auditTableBody").innerHTML =
+          '<tr><td colspan="9" class="text-center text-danger py-4">Unable to load audit history. Check API connectivity and storage configuration.</td></tr>';
       }
     }
 
@@ -1148,7 +1204,7 @@
     function handleScenarioSelect() {
       const choice = document.getElementById("quickScenarioSelect").value;
       if (choice === "calc_add_valid") {
-        document.getElementById("soapEndpointUrl").value = "http://127.0.0.1:5000/soap/calculator";
+        document.getElementById("soapEndpointUrl").value = "{{ request.host_url.rstrip('/') }}/soap/calculator";
         document.getElementById("soapActionHeader").value = "http://example.com/calculator/Add";
         document.getElementById("soapRequestXml").value = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://example.com/calculator">
@@ -1161,7 +1217,7 @@
   </soap:Body>
 </soap:Envelope>`;
       } else if (choice === "calc_div_zero") {
-        document.getElementById("soapEndpointUrl").value = "http://127.0.0.1:5000/soap/calculator";
+        document.getElementById("soapEndpointUrl").value = "{{ request.host_url.rstrip('/') }}/soap/calculator";
         document.getElementById("soapActionHeader").value = "http://example.com/calculator/Divide";
         document.getElementById("soapRequestXml").value = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://example.com/calculator">
@@ -1260,6 +1316,7 @@
       document.getElementById("tab-" + id + "-btn")?.addEventListener("shown.bs.tab", () => syncWorkbenchTab(id));
     }
     loadWorkbenchOverview();
+    refreshSavedServices();
     document.addEventListener("keydown", (event) => { if (event.key === "Escape") toggleWorkbenchMenu(false); });
   });
 </script>

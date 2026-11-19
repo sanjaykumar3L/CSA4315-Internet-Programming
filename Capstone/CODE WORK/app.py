@@ -6,8 +6,10 @@ import sqlite3
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, send_file, Response, render_template_string
 from flask_cors import CORS
+from xml.sax.saxutils import escape as xml_escape
 import ipaddress
 import socket
+import uuid
 from urllib.parse import urlsplit
 from lxml import etree
 import requests
@@ -19,8 +21,14 @@ app = Flask(__name__, template_folder="templates", static_folder="static")
 CORS(app, resources={r"/api/*": {"origins": os.environ.get("CAPSTONE_ALLOWED_ORIGIN", "http://127.0.0.1:5000")}})
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB max payload
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_history.db")
-PDF_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "generated_reports")
+# Vercel Functions have a read-only deployment bundle. /tmp is scratch space only:
+# the SQLite database is intentionally EPHEMERAL in online preview.
+IS_VERCEL = bool(os.environ.get("VERCEL"))
+HAS_PERSISTENT_STORAGE = IS_VERCEL and bool(os.environ.get("BLOB_READ_WRITE_TOKEN"))
+RUNTIME_DIR = "/tmp/capstone-contract-studio" if IS_VERCEL else os.path.dirname(os.path.abspath(__file__))
+os.makedirs(RUNTIME_DIR, exist_ok=True)
+DB_PATH = os.path.join(RUNTIME_DIR, "test_history.db")
+PDF_DIR = os.path.join(RUNTIME_DIR, "generated_reports")
 os.makedirs(PDF_DIR, exist_ok=True)
 
 # XML & WSDL Standard Namespaces
@@ -76,6 +84,9 @@ def init_db():
 init_db()
 
 def db_save_service(service_name, target_namespace, endpoint_url, wsdl_content):
+    if HAS_PERSISTENT_STORAGE:
+        from persistent_history import create_service
+        return create_service(service_name, target_namespace, endpoint_url, wsdl_content)
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -91,9 +102,43 @@ def db_save_service(service_name, target_namespace, endpoint_url, wsdl_content):
         print(f"[DB ERROR] save_service: {e}")
         return None
 
+def db_get_services(limit=100):
+    if HAS_PERSISTENT_STORAGE:
+        from persistent_history import list_services
+        return list_services(limit)
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT id, service_name, target_namespace, endpoint_url, created_at "
+            "FROM configured_services ORDER BY id DESC LIMIT ?",
+            (limit,)
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
 def db_save_test_record(service_name, operation_name, endpoint_url, test_type, status,
                         response_time_ms, http_status_code, request_xml, response_xml,
                         validation_errors, compatibility_assessment, summary):
+    if HAS_PERSISTENT_STORAGE:
+        from persistent_history import create_record
+        audit = {
+            "service_name": str(service_name)[:160],
+            "operation_name": str(operation_name)[:160],
+            "endpoint_url": str(endpoint_url)[:400],
+            "test_type": str(test_type)[:64],
+            "status": str(status)[:32],
+            "response_time_ms": float(response_time_ms or 0),
+            "http_status_code": int(http_status_code or 0),
+            "request_xml": str(request_xml)[:30000],
+            "response_xml": str(response_xml)[:30000],
+            "validation_errors": json.dumps(validation_errors),
+            "validation_errors_list": validation_errors if isinstance(validation_errors, list) else [],
+            "compatibility_assessment": str(compatibility_assessment)[:3000],
+            "summary": str(summary)[:1000],
+        }
+        return create_record(audit)
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -118,6 +163,9 @@ def db_save_test_record(service_name, operation_name, endpoint_url, test_type, s
         return None
 
 def db_get_test_records(limit=50):
+    if HAS_PERSISTENT_STORAGE:
+        from persistent_history import list_records
+        return list_records(limit=limit)
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -138,6 +186,9 @@ def db_get_test_records(limit=50):
         return []
 
 def db_get_record_by_id(record_id):
+    if HAS_PERSISTENT_STORAGE:
+        from persistent_history import get_record
+        return get_record(record_id)
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -472,7 +523,7 @@ def check_soap_endpoint(endpoint_url):
         return f"Invalid or unresolved SOAP endpoint: {exc}"
     return None
 
-def dispatch_real_soap_request(endpoint_url, request_xml, soap_action="", soap_version="1.1", timeout=12, service_name="SOAPService", operation_name="Operation"):
+def dispatch_real_soap_request(endpoint_url, request_xml, soap_action="", soap_version="1.1", timeout=12, service_name="SOAPService", operation_name="Operation", internal_demo=False):
     headers = {
         "User-Agent": "Integrated-Contract-Validator/1.0",
     }
@@ -487,16 +538,24 @@ def dispatch_real_soap_request(endpoint_url, request_xml, soap_action="", soap_v
 
     start_timer = time.perf_counter()
     try:
-        resp = requests.post(
-            endpoint_url,
-            data=request_xml.encode('utf-8'),
-            headers=headers,
-            timeout=timeout,
-            allow_redirects=False
-        )
+        if internal_demo:
+            # The Vercel preview demo uses the real Calculator SOAP Flask handler,
+            # without making an HTTP request back through deployment protection.
+            with app.test_client() as demo_client:
+                resp = demo_client.post("/soap/calculator", data=request_xml.encode("utf-8"), headers=headers)
+                status_code = resp.status_code
+                response_text = resp.get_data(as_text=True)
+        else:
+            resp = requests.post(
+                endpoint_url,
+                data=request_xml.encode('utf-8'),
+                headers=headers,
+                timeout=timeout,
+                allow_redirects=False
+            )
+            status_code = resp.status_code
+            response_text = resp.text
         latency_ms = round((time.perf_counter() - start_timer) * 1000, 2)
-        status_code = resp.status_code
-        response_text = resp.text
     except requests.exceptions.Timeout:
         latency_ms = round((time.perf_counter() - start_timer) * 1000, 2)
         err_msg = f"Network Timeout: Service failed to respond within {timeout} seconds."
@@ -615,6 +674,8 @@ def build_pdf_document(record, destination_path):
     from reportlab.lib import colors
 
     doc = SimpleDocTemplate(destination_path, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    def safe(value):
+        return xml_escape(str(value if value is not None else "N/A"))
     styles = getSampleStyleSheet()
 
     title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor('#1E3A8A'), spaceAfter=8)
@@ -630,14 +691,14 @@ def build_pdf_document(record, destination_path):
     status_color = colors.green if status == 'PASSED' else colors.red
 
     table_data = [
-        [Paragraph("<b>Service Name:</b>", body_style), Paragraph(str(record.get('service_name', 'N/A')), body_style)],
-        [Paragraph("<b>Operation:</b>", body_style), Paragraph(str(record.get('operation_name', 'N/A')), body_style)],
-        [Paragraph("<b>Endpoint URL:</b>", body_style), Paragraph(str(record.get('endpoint_url', 'N/A')), body_style)],
-        [Paragraph("<b>Test Execution Type:</b>", body_style), Paragraph(str(record.get('test_type', 'N/A')), body_style)],
-        [Paragraph("<b>Execution Status:</b>", body_style), Paragraph(f"<b><font color='{status_color}'>{status}</font></b>", body_style)],
-        [Paragraph("<b>Response Latency:</b>", body_style), Paragraph(f"{record.get('response_time_ms', 0)} ms", body_style)],
-        [Paragraph("<b>HTTP Status Code:</b>", body_style), Paragraph(str(record.get('http_status_code', 'N/A')), body_style)],
-        [Paragraph("<b>Summary:</b>", body_style), Paragraph(str(record.get('summary', 'N/A')), body_style)]
+        [Paragraph("<b>Service Name:</b>", body_style), Paragraph(safe(record.get('service_name')), body_style)],
+        [Paragraph("<b>Operation:</b>", body_style), Paragraph(safe(record.get('operation_name')), body_style)],
+        [Paragraph("<b>Endpoint URL:</b>", body_style), Paragraph(safe(record.get('endpoint_url')), body_style)],
+        [Paragraph("<b>Test Execution Type:</b>", body_style), Paragraph(safe(record.get('test_type')), body_style)],
+        [Paragraph("<b>Execution Status:</b>", body_style), Paragraph(f"<b><font color='{'#008047' if status == 'PASSED' else '#bf3030'}'>{safe(status)}</font></b>", body_style)],
+        [Paragraph("<b>Response Latency:</b>", body_style), Paragraph(safe(f"{record.get('response_time_ms', 0)} ms"), body_style)],
+        [Paragraph("<b>HTTP Status Code:</b>", body_style), Paragraph(safe(record.get('http_status_code')), body_style)],
+        [Paragraph("<b>Summary:</b>", body_style), Paragraph(safe(record.get('summary')), body_style)]
     ]
 
     t = Table(table_data, colWidths=[130, 400])
@@ -660,9 +721,9 @@ def build_pdf_document(record, destination_path):
                 cat = e.get("category", "Error")
                 msg = e.get("message", json.dumps(e))
                 line_info = f" (Line {e.get('line')})" if e.get('line') else ""
-                err_rows.append([Paragraph(f"{cat}{line_info}", body_style), Paragraph(msg, body_style)])
+                err_rows.append([Paragraph(safe(f"{cat}{line_info}"), body_style), Paragraph(safe(msg), body_style)])
             else:
-                err_rows.append([Paragraph("Error", body_style), Paragraph(str(e), body_style)])
+                err_rows.append([Paragraph("Error", body_style), Paragraph(safe(e), body_style)])
 
         err_table = Table(err_rows, colWidths=[150, 380])
         err_table.setStyle(TableStyle([
@@ -754,12 +815,15 @@ CALCULATOR_WSDL = """<?xml version="1.0" encoding="UTF-8"?>
 def live_mock_calculator():
     if request.method == "GET":
         if "wsdl" in request.args or request.path.endswith("?wsdl"):
-            return Response(CALCULATOR_WSDL, mimetype="text/xml")
+            # Use the actual host on Vercel instead of publishing a 127.0.0.1 WSDL endpoint.
+            service_url = request.host_url.rstrip("/") + "/soap/calculator"
+            wsdl = CALCULATOR_WSDL.replace("http://127.0.0.1:5000/soap/calculator", service_url)
+            return Response(wsdl, mimetype="text/xml")
         return Response("Calculator SOAP Service Active. Append ?wsdl for contract.", mimetype="text/plain")
 
     raw_body = request.get_data(as_text=True)
     try:
-        root = etree.fromstring(raw_body.encode('utf-8'))
+        root = etree.fromstring(raw_body.encode('utf-8'), etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False, huge_tree=False))
         add_elem = root.find(".//{http://example.com/calculator}Add")
         if add_elem is not None:
             a = add_elem.find("{http://example.com/calculator}intA")
@@ -834,7 +898,7 @@ def generate_soap_fault(fault_code, fault_string):
 # ---------------------------------------------------------
 @app.route("/")
 def index_page():
-    return render_template("index.html")
+    return render_template("index.html", is_serverless_preview=IS_VERCEL, is_persistent_history=HAS_PERSISTENT_STORAGE)
 
 # API 1: Parse WSDL
 @app.route("/api/v1/wsdl/parse", methods=["POST"])
@@ -1012,7 +1076,14 @@ def api_execute_soap():
                 "message": "Endpoint URL and SOAP Request XML are required."
             }), 400
 
-        endpoint_error = check_soap_endpoint(endpoint_url)
+        parsed_endpoint = urlsplit(endpoint_url)
+        same_origin_demo = (
+            parsed_endpoint.netloc.lower() == request.host.lower()
+            and parsed_endpoint.scheme in ("https", "http")
+            and parsed_endpoint.path == "/soap/calculator"
+            and not parsed_endpoint.query
+        )
+        endpoint_error = None if same_origin_demo else check_soap_endpoint(endpoint_url)
         if endpoint_error:
             return jsonify({"status": "error", "message": endpoint_error}), 400
         res = dispatch_real_soap_request(
@@ -1022,7 +1093,8 @@ def api_execute_soap():
             soap_version=soap_ver,
             timeout=timeout,
             service_name=service_name,
-            operation_name=operation_name
+            operation_name=operation_name,
+            internal_demo=same_origin_demo
         )
         return jsonify(res), 200
     except Exception as e:
@@ -1032,6 +1104,24 @@ def api_execute_soap():
         }), 500
 
 # API 6: Fetch Audit Logs
+@app.route("/api/v1/runtime", methods=["GET"])
+def api_get_runtime():
+    return jsonify({
+        "status": "success",
+        "mode": "vercel-preview" if IS_VERCEL else "local",
+        "history_persistence": ("vercel-blob" if HAS_PERSISTENT_STORAGE else ("ephemeral" if IS_VERCEL else "local-sqlite")),
+    }), 200
+
+
+@app.route("/api/v1/services", methods=["GET"])
+def api_get_services():
+    try:
+        return jsonify({"status": "success", "services": db_get_services(100)}), 200
+    except Exception:
+        app.logger.exception("Service catalog storage unavailable")
+        return jsonify({"status": "error", "message": "The service catalog is temporarily unavailable."}), 503
+
+
 @app.route("/api/v1/reports", methods=["GET"])
 def api_get_reports():
     records = db_get_test_records(limit=100)
@@ -1044,9 +1134,13 @@ def download_pdf_audit(record_id):
     if not rec:
         return "Test record not found", 404
 
-    target_pdf = os.path.join(PDF_DIR, f"Validation_Report_{record_id}.pdf")
+    # Render from durable record into a memory buffer instead of temporary file.
+    # The ReportLab utility only requires a writable file-like output target.
+    target_pdf = io.BytesIO()
     build_pdf_document(rec, target_pdf)
-    return send_file(target_pdf, as_attachment=True, download_name=f"Validation_Report_Test_{record_id}.pdf")
+    target_pdf.seek(0)
+    return send_file(target_pdf, as_attachment=True, mimetype="application/pdf",
+                     download_name=f"Validation_Report_Test_{record_id}.pdf")
 
 # ---------------------------------------------------------
 # Launcher Entrypoint

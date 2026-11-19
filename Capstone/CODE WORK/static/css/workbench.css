@@ -94,7 +94,21 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   color: var(--wb-text);
 }
 .workbench-mobile-shade { display: none; }
-body > .header-bar, body > main { margin-left: var(--wb-nav-width); }
+/* Bootstrap .container-fluid is width:100%; after a left margin it overflows the
+   viewport and slides content underneath the fixed navigation. Subtract the rail. */
+body > .header-bar, body > main {
+  margin-left: var(--wb-nav-width);
+  width: calc(100% - var(--wb-nav-width)) !important;
+  min-width: 0;
+}
+body { overflow-x: clip; }
+.header-bar .d-flex.flex-wrap > div { min-width: 0; }
+.header-bar h1, .header-bar code { overflow-wrap: anywhere; }
+main.container-fluid { box-sizing: border-box; min-width: 0; }
+#moduleTabsContent, .tab-pane, .card { min-width: 0; }
+.table-responsive { max-width: 100%; overflow-x: auto; }
+.workbench-overview > * { min-width: 0; }
+
 .header-bar {
   background: var(--wb-bg) !important;
   color: var(--wb-text) !important;
@@ -232,3 +246,45 @@ hr { border-color: var(--wb-line); opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+
+/* Persistent-storage banner follows the fixed navigation rail. */
+.workbench-storage-notice {
+  margin-left: var(--wb-nav-width);
+  width: calc(100% - var(--wb-nav-width));
+  padding: 11px 28px;
+  font-size: .8rem;
+  line-height: 1.55;
+  text-align: center;
+  border-bottom: 1px solid var(--wb-line);
+}
+.workbench-storage-notice.is-durable {
+  background: #11342e;
+  color: #adf6da;
+  border-bottom-color: #266854;
+}
+.workbench-storage-notice.is-temporary {
+  background: #4b3517;
+  color: #ffe1ab;
+  border-bottom-color: #81633b;
+}
+@media (max-width: 900px) {
+  .workbench-storage-notice { padding: 9px 16px; font-size: .74rem; }
+}
+
+/* Saved WSDL service catalog */
+.workbench-service-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.workbench-service-entry {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--wb-line);
+  border-radius: 11px;
+  padding: 12px 14px;
+  background: var(--wb-panel-alt);
+}
+.workbench-service-entry strong { color: var(--wb-text); font-size: .82rem; overflow-wrap: anywhere; }
+.workbench-service-entry span { color: var(--wb-muted); font-size: .72rem; line-height: 1.55; overflow-wrap: anywhere; }
+@media (max-width: 1180px) { .workbench-service-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .workbench-service-list { grid-template-columns: minmax(0, 1fr); } }
