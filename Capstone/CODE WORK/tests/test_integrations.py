@@ -75,9 +75,9 @@ class ModuleIntegrationTests(unittest.TestCase):
 class DurableBlobHistoryTests(unittest.TestCase):
     def setUp(self):
         self.saved = {}
-        self.put = patch.object(persistent_history, "put", side_effect=self.fake_put).start()
-        self.list = patch.object(persistent_history, "list_objects", side_effect=self.fake_list).start()
-        self.get = patch.object(persistent_history, "get", side_effect=self.fake_get).start()
+        self.put = patch.object(persistent_history, "put_blob", side_effect=self.fake_put).start()
+        self.list = patch.object(persistent_history, "query_blobs", side_effect=self.fake_list).start()
+        self.get = patch.object(persistent_history, "get_blob", side_effect=self.fake_get).start()
         self.addCleanup(patch.stopall)
 
     def fake_put(self, pathname, data, **kwargs):
@@ -87,13 +87,13 @@ class DurableBlobHistoryTests(unittest.TestCase):
 
     def fake_list(self, prefix="", **kwargs):
         items = [SimpleNamespace(pathname=key) for key in self.saved if key.startswith(prefix)]
-        return SimpleNamespace(blobs=items, has_more=False, cursor=None)
+        return iter(items)
 
     def fake_get(self, pathname, **kwargs):
         data = self.saved.get(pathname)
         if not data:
             return None
-        return SimpleNamespace(status_code=200, stream=iter([data]))
+        return SimpleNamespace(body=data)
 
     def test_record_round_trip_and_unique_ids(self):
         ids = [
